@@ -58,9 +58,9 @@ def format_order_summary(order: Dict[str, Any]) -> str:
         f"🕹 <b>Player ID:</b> <code>{order.get('player_id')}</code>\n"
         f"{E('uc')} <b>Paket:</b> <b>{product_name}</b>\n"
         f"{E('balance')} <b>Summa:</b> <b>{price_str}</b>\n"
-        f"{SUB_DIVIDER}\n"
         f"{E('payment')} <b>To'lov usuli:</b> <code>{order.get('payment_method', 'Noma\'lum')}</code>\n"
         f"{E('stats')} <b>Holat:</b> <b>{status_badge}</b>\n"
+        f"{proof_line}\n"
         f"{E('clock')} <b>Sana:</b> <code>{date_str}</code>\n"
         f"{DIVIDER}"
     )
