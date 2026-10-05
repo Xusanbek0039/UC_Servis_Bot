@@ -5,6 +5,7 @@ from aiogram.types import InlineKeyboardMarkup
 from config import ADMIN_IDS
 import database as db
 from .midasbuy import MidasbuyService
+from .proof_channel import ProofChannelService
 from utils.helpers import format_currency, DIVIDER, SUB_DIVIDER
 from keyboards.user import order_success_keyboard
 from emojis import E
