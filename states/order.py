@@ -8,6 +8,10 @@ class OrderStates(StatesGroup):
     WAITING_SCREENSHOT = State()
 
 
+class TopUpStates(StatesGroup):
+    WAITING_AMOUNT = State()
+
+
 class AdminProductStates(StatesGroup):
     WAITING_NAME = State()
     WAITING_UC_AMOUNT = State()

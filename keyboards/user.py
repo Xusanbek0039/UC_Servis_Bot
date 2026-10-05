@@ -128,6 +128,17 @@ def tezcheck_pay_keyboard(pay_url: str, order_id: str) -> InlineKeyboardMarkup:
     )
 
 
+def balance_topup_keyboard(pay_url: str, topup_id: str) -> InlineKeyboardMarkup:
+    """Checkout link and in-bot status refresh for a balance top-up."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=f"{E('lightning', True)} To‘lov qilish", url=pay_url)],
+            [InlineKeyboardButton(text=f"{E('refresh', True)} To‘lovni tekshirish", callback_data=f"check_topup:{topup_id}")],
+            [InlineKeyboardButton(text=f"{E('back', True)} Balansga qaytish", callback_data="btn_my_balance")],
+        ]
+    )
+
+
 def order_success_keyboard() -> InlineKeyboardMarkup:
     """Completion confirmation buttons."""
     return InlineKeyboardMarkup(

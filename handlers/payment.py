@@ -70,7 +70,7 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
     # 2. TezCheck Payment
     if method == "TEZCHECK":
         wait_msg = await call.message.edit_text(f"{E('clock')} <i>Onlayn to'lov havolasi yaratilmoqda...</i>")
-        success, pay_url, err = await TezCheckService.create_payment_bill(
+        success, pay_url, bill_id, err = await TezCheckService.create_payment_bill(
             order_id=order_id,
             amount=price,
             description=f"PUBG UC: {order['product_name']} ({order_id})",
@@ -88,7 +88,13 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
             await call.answer()
             return
 
-        await db.create_payment(order_id=order_id, amount=price, payment_method="TEZCHECK")
+        await db.create_payment(
+            order_id=order_id,
+            amount=price,
+            payment_method="TEZCHECK",
+            bill_id=bill_id,
+            amount_minor=int(round(float(price) * 100)),
+        )
 
         text = (
             f"{DIVIDER}\n"

@@ -525,19 +525,86 @@ async def get_proof_stats() -> Dict[str, Any]:
 # PAYMENT FUNCTIONS
 # ==============================================================================
 
-async def create_payment(order_id: str, amount: float, payment_method: str, payment_id: str = "") -> str:
+async def create_payment(
+    order_id: str,
+    amount: float,
+    payment_method: str,
+    payment_id: str = "",
+    *,
+    bill_id: str = "",
+    amount_minor: int = 0,
+    payment_type: str = "ORDER",
+    telegram_id: Optional[int] = None,
+) -> str:
     db = get_db()
     payment = {
         "order_id": order_id,
         "payment_id": payment_id,
         "amount": float(amount),
         "payment_method": payment_method,
+        "payment_type": payment_type,
+        "bill_id": bill_id,
+        "amount_minor": int(amount_minor or round(float(amount) * 100)),
+        "telegram_id": telegram_id,
         "status": "PENDING",
         "raw_data": "",
         "created_at": datetime.now(),
     }
     res = await db.payments.insert_one(payment)
     return str(res.inserted_id)
+
+
+async def get_pending_tezcheck_payments(limit: int = 100) -> List[Dict[str, Any]]:
+    db = get_db()
+    cursor = db.payments.find({
+        "payment_method": "TEZCHECK",
+        "status": "PENDING",
+        "bill_id": {"$exists": True, "$ne": ""},
+    }).sort("created_at", ASCENDING).limit(limit)
+    return [clean_doc(doc) async for doc in cursor]
+
+
+async def mark_payment_paid_if_pending(order_id: str, raw_data: str = "") -> bool:
+    db = get_db()
+    result = await db.payments.update_one(
+        {"order_id": order_id, "payment_method": "TEZCHECK", "status": "PENDING"},
+        {"$set": {"status": "PAID", "raw_data": raw_data, "paid_at": datetime.now()}},
+    )
+    return result.modified_count == 1
+
+
+async def credit_topup_if_pending(order_id: str, raw_data: str = "") -> Optional[Dict[str, Any]]:
+    """Atomically mark a top-up paid and credit its user's balance once."""
+    global _client
+    db = get_db()
+    if _client is None:
+        return None
+
+    async def apply(session):
+        payment = await db.payments.find_one_and_update(
+            {
+                "order_id": order_id,
+                "payment_type": "BALANCE_TOPUP",
+                "payment_method": "TEZCHECK",
+                "status": "PENDING",
+            },
+            {"$set": {"status": "PAID", "raw_data": raw_data, "paid_at": datetime.now()}},
+            return_document=ReturnDocument.BEFORE,
+            session=session,
+        )
+        if not payment:
+            return None
+        updated = await db.users.update_one(
+            {"telegram_id": payment["telegram_id"]},
+            {"$inc": {"balance": float(payment["amount"])}},
+            session=session,
+        )
+        if updated.modified_count != 1:
+            raise RuntimeError(f"Top-up user not found for payment {order_id}")
+        return clean_doc(payment)
+
+    async with await _client.start_session() as session:
+        return await session.with_transaction(apply)
 
 
 async def get_payment_by_order(order_id: str) -> Optional[Dict[str, Any]]:
