@@ -58,6 +58,16 @@ def admin_order_detail_keyboard(order: Dict[str, Any]) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text=f"{E('cross', True)} Bekor qilish", callback_data=f"adm_rej_ord:{order_id}"),
         ])
 
+    # Proof Channel control button
+    if order.get("proof_sent"):
+        buttons.append([
+            InlineKeyboardButton(text=f"{E('refresh', True)} Isbot postini yangilash", callback_data=f"adm_proof_upd:{order_id}")
+        ])
+    else:
+        buttons.append([
+            InlineKeyboardButton(text=f"{E('proof', True)} Isbot kanaliga yuborish", callback_data=f"adm_proof_send:{order_id}")
+        ])
+
     buttons.append([InlineKeyboardButton(text=f"{E('back', True)} Buyurtmalarga qaytish", callback_data="adm_orders_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

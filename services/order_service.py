@@ -55,12 +55,17 @@ class OrderService:
         # Update payment record
         await db.update_payment_status(order_id=order_id, status="PAID", raw_data=provider_tx_id)
 
+        # 1. Post initial proof to channel: RECEIVED
+        await ProofChannelService.send_or_update_proof(bot, order_id=order_id, new_proof_status="RECEIVED")
+
         delivery_mode = await db.get_setting("delivery_mode", "MANUAL")
         logger.info(f"Processing delivery for order {order_id} (Mode: {delivery_mode})")
 
         if delivery_mode == "AUTO":
             # Automated delivery via Midasbuy
             await db.update_order_status(order_id, "PROCESSING")
+            await ProofChannelService.send_or_update_proof(bot, order_id=order_id, new_proof_status="PROCESSING")
+
             success, tx_id, err_msg = await MidasbuyService.deliver_uc(
                 order_id=order["order_id"],
                 player_id=order["player_id"],
@@ -68,6 +73,8 @@ class OrderService:
             )
             if success:
                 await db.update_order_status(order_id, "COMPLETED")
+                await ProofChannelService.send_or_update_proof(bot, order_id=order_id, new_proof_status="COMPLETED")
+
                 user_msg = (
                     f"{DIVIDER}\n"
                     f"   {E('success')} <b>BUYURTMA BAJARILDI</b>\n"
@@ -96,8 +103,10 @@ class OrderService:
                 await cls.notify_admins(bot, admin_alert)
                 return False
         else:
-            # Manual delivery mode
+            # Manual delivery mode - queue into PROCESSING
             await db.update_order_status(order_id, "PAID")
+            await ProofChannelService.send_or_update_proof(bot, order_id=order_id, new_proof_status="PROCESSING")
+
             admin_alert = (
                 f"{DIVIDER}\n"
                 f"🚨 <b>YANGI TO'LANGAN BUYURTMA (QO'LDA YETKAZISH KERAK)!</b>\n"
@@ -132,6 +141,9 @@ class OrderService:
             return False
 
         await db.update_order_status(order_id, "COMPLETED")
+        # Update proof message in channel to COMPLETED
+        await ProofChannelService.send_or_update_proof(bot, order_id=order_id, new_proof_status="COMPLETED")
+
         user_msg = (
             f"{DIVIDER}\n"
             f"   {E('success')} <b>BUYURTMA BAJARILDI</b>\n"
