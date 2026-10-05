@@ -13,6 +13,13 @@ logger = logging.getLogger("services.tezcheck")
 API_PATH = "/api/merchant/v1"
 
 
+def api_url(path: str) -> str:
+    """Accept either the TezCheck host or a base URL already ending in API_PATH."""
+    base = TEZCHECK_BASE_URL.rstrip("/")
+    api_base = base if base.endswith(API_PATH) else f"{base}{API_PATH}"
+    return f"{api_base}/{path.lstrip('/')}"
+
+
 class TezCheckService:
     @staticmethod
     def _headers(method: str, path: str, body: bytes, idempotency_key: str = "") -> Dict[str, str]:
@@ -55,8 +62,8 @@ class TezCheckService:
         headers = cls._headers("POST", path, body, f"bill-{order_id}")
 
         try:
-            async with httpx.AsyncClient(base_url=TEZCHECK_BASE_URL, timeout=20.0) as client:
-            response = await client.post(path, content=body, headers=headers)
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(api_url("bills"), content=body, headers=headers)
             if response.status_code >= 400:
                 logger.error("TezCheck bill creation failed (%s): %s", response.status_code, response.text[:1000])
                 if response.status_code == 401:
@@ -97,8 +104,8 @@ class TezCheckService:
         body = b""
         headers = cls._headers("POST", path, body)
         try:
-            async with httpx.AsyncClient(base_url=TEZCHECK_BASE_URL, timeout=15.0) as client:
-                response = await client.post(path, content=body, headers=headers)
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(api_url(f"bills/{bill_id}"), content=body, headers=headers)
             if response.status_code >= 400:
                 logger.warning("TezCheck status lookup failed (%s): %s", response.status_code, response.text[:500])
                 return False, {}, f"TezCheck holatni qaytara olmadi ({response.status_code})."

@@ -24,9 +24,13 @@ MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "pubg_uc_db").strip()
 DELIVERY_MODE = os.getenv("DELIVERY_MODE", "MANUAL").strip().upper()
 
 # TezCheck Gateway
-TEZCHECK_BASE_URL = os.getenv("TEZCHECK_BASE_URL", "https://api.tezcheck.uz").rstrip("/")
-TEZCHECK_API_KEY = os.getenv("TEZCHECK_API_KEY", "").strip()
-TEZCHECK_CASH_DESK_CODE = os.getenv("TEZCHECK_CASH_DESK_CODE", "").strip()
+TEZCHECK_BASE_URL = (
+    os.getenv("TEZ_BASE_URL") or os.getenv("TEZCHECK_BASE_URL") or "https://api.tezcheck.uz"
+).strip().rstrip("/")
+TEZCHECK_API_KEY = (os.getenv("TEZ_API_KEY") or os.getenv("TEZCHECK_API_KEY") or "").strip()
+TEZCHECK_CASH_DESK_CODE = (
+    os.getenv("TEZ_CASH_DESK_CODE") or os.getenv("TEZCHECK_CASH_DESK_CODE") or ""
+).strip()
 TEZCHECK_WEBHOOK_SECRET = os.getenv("TEZCHECK_WEBHOOK_SECRET", "").strip()
 
 # Midasbuy API
