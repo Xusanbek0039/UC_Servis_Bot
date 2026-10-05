@@ -1,0 +1,42 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static %}
+
+{% block content %}
+{% if stats %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px;">
+    <div style="background: #1e293b; color: #fff; padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">💰 Bugungi savdo</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px; color: #10b981;">{{ stats.today_revenue|floatformat:0 }} UZS</div>
+    </div>
+    <div style="background: #1e293b; color: #fff; padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">📦 Bugungi buyurtmalar</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px; color: #38bdf8;">{{ stats.today_orders }} ta</div>
+    </div>
+    <div style="background: #1e293b; color: #fff; padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">✅ Muvaffaqiyatli</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px; color: #4ade80;">{{ stats.successful_orders }} ta</div>
+    </div>
+    <div style="background: #1e293b; color: #fff; padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">⏳ Kutilayotgan to'lovlar</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px; color: #fbbf24;">{{ stats.pending_payments }} ta</div>
+    </div>
+    <div style="background: #1e293b; color: #fff; padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">🔴 Manual Orders</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px; color: #f87171;">{{ stats.manual_orders }} ta</div>
+    </div>
+    <div style="background: #1e293b; color: #fff; padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">❌ Bekor / Xato</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px; color: #ef4444;">{{ stats.failed_orders }} ta</div>
+    </div>
+    <div style="background: #1e293b; color: #fff; padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">📈 Sof Foyda</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px; color: #a78bfa;">{{ stats.total_profit|floatformat:0 }} UZS</div>
+    </div>
+    <div style="background: #1e293b; color: #fff; padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">💎 Jami Savdo</div>
+        <div style="font-size: 24px; font-weight: 700; margin-top: 8px; color: #e2e8f0;">{{ stats.total_revenue|floatformat:0 }} UZS</div>
+    </div>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}
