@@ -7,10 +7,21 @@ from config import DB_PATH, DELIVERY_MODE
 logger = logging.getLogger("database")
 
 
-async def get_connection() -> aiosqlite.Connection:
+class DBContext:
+    def __init__(self, conn: aiosqlite.Connection):
+        self.conn = conn
+
+    async def __aenter__(self) -> aiosqlite.Connection:
+        return self.conn
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.conn.close()
+
+
+async def get_connection() -> DBContext:
     conn = await aiosqlite.connect(DB_PATH)
     conn.row_factory = aiosqlite.Row
-    return conn
+    return DBContext(conn)
 
 
 async def init_db():
