@@ -129,7 +129,7 @@ Windows terminalida botni oddiy buyruq bilan yoqing:
 ```powershell
 python bot.py
 ```
-> Bot MongoDB Atlas'ga ulanadi, kerakli kolleksiyalarni va standart UC paketlarini үүсгэнэ.
+> Bot MongoDB Atlas'ga ulanadi, kerakli kolleksiyalarni va standart UC paketlarini yaratadi.
 
 TezCheck API kaliti va kassa kodi Render'dagi Environment Variables bo'limida ham kiritilgan bo'lishi kerak. `python bot.py` ishlayotgan paytda bot kutilayotgan to'lovlarni davriy tekshiradi; alohida webhook process yoki ommaviy webhook URL kerak emas.
 
