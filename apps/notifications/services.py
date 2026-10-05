@@ -114,3 +114,29 @@ class NotificationService:
                 reply_markup=reply_markup,
                 notification_type=NotificationLog.NotificationType.ADMIN_ALERT,
             )
+
+    @classmethod
+    def dispatch_order_status_change(cls, order) -> None:
+        """Dispatches notification safely from synchronous ORM or Celery contexts."""
+        try:
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(cls.notify_order_status_change(order))
+            except RuntimeError:
+                asyncio.run(cls.notify_order_status_change(order))
+        except Exception as e:
+            logger.error(f"Error dispatching order status notification: {e}")
+
+    @classmethod
+    def dispatch_admin_alert(cls, text: str, reply_markup: Optional[InlineKeyboardMarkup] = None) -> None:
+        """Dispatches admin alert safely from synchronous contexts."""
+        try:
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(cls.notify_admins(text, reply_markup))
+            except RuntimeError:
+                asyncio.run(cls.notify_admins(text, reply_markup))
+        except Exception as e:
+            logger.error(f"Error dispatching admin alert: {e}")
