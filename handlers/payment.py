@@ -2,6 +2,7 @@ import logging
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
+from aiogram.html import quote
 from states.order import OrderStates
 from keyboards.user import (
     tezcheck_pay_keyboard,
@@ -81,7 +82,7 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
             await wait_msg.edit_text(
                 f"{DIVIDER}\n"
                 f"{E('error')} <b>To'lov tizimida vaqtinchalik muammo yuz berdi.</b>\n\n"
-                f"Sabab: {err}\n"
+                f"Sabab: {quote(err)}\n"
                 f"Iltimos, karta orqali to'lov qiling.\n"
                 f"{DIVIDER}",
                 reply_markup=nav_back_home_keyboard("back_to_products"),
@@ -238,6 +239,9 @@ async def check_payment_manual(call: CallbackQuery, bot: Bot):
                 return
             if result == "error":
                 await call.answer("To‘lov holatini tekshirib bo‘lmadi. Keyinroq urinib ko‘ring.", show_alert=True)
+                return
+            if result == "mismatch":
+                await call.answer("To‘lov summasi mos kelmadi. Operatorga murojaat qiling.", show_alert=True)
                 return
         await call.answer("⏳ To'lov hali tasdiqlanmadi. To‘lovdan keyin yana tekshiring.", show_alert=True)
 

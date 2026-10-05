@@ -1,6 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
+from aiogram.html import quote
 from uuid import uuid4
 import database as db
 from utils.helpers import format_currency, DIVIDER, SUB_DIVIDER
@@ -100,7 +101,7 @@ async def create_balance_topup(message: Message, state: FSMContext):
     )
     if not success:
         await message.answer(
-            f"{DIVIDER}\n⚠️ <b>To‘lov havolasi yaratilmadi</b>\n\n{error}\n{DIVIDER}",
+            f"{DIVIDER}\n⚠️ <b>To‘lov havolasi yaratilmadi</b>\n\n{quote(error)}\n{DIVIDER}",
             reply_markup=balance_keyboard(),
         )
         await state.clear()
@@ -151,6 +152,8 @@ async def check_balance_topup(call: CallbackQuery):
         await call.answer("To‘lov summasi mos kelmadi. Operatorga murojaat qiling.", show_alert=True)
     elif result == "error":
         await call.answer("To‘lov holatini hozir tekshirib bo‘lmadi. Keyinroq urinib ko‘ring.", show_alert=True)
+    elif result == "already_processed":
+        await call.answer("To‘lov tasdiqlangan va balansga qo‘shilgan.", show_alert=True)
     else:
         await call.answer("To‘lov hali tasdiqlanmadi. Birozdan keyin qayta tekshiring.", show_alert=True)
 

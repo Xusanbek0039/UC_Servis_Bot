@@ -11,7 +11,7 @@ Ushbu loyiha **Django, Docker, Celery, Redis va PostgreSQL kabi og'ir vositalard
 - **Dasturlash tili:** Python 3.12+
 - **Telegram Bot Framework:** Aiogram 3.x (Asinxron FSM, zamonaviy Routerlar, Inline tugmalar)
 - **Ma'lumotlar bazasi:** MongoDB Atlas (`motor` + `pymongo` - asinxron, bulutli NoSQL ma'lumotlar bazasi)
-- **To'lov Webhook Serveri:** FastAPI + Uvicorn (TezCheck to'lovlarini qabul qilish uchun)
+- **Avtomatik to'lovlar:** TezCheck hisoblari holatini `bot.py` ichidagi fon vazifasi tekshiradi; webhook serveri talab qilinmaydi.
 - **HTTP Client:** HTTPX (Asinxron HTTP so'rovlar, HMAC-SHA256 imzolar)
 - **Konfiguratsiya:** `python-dotenv` orqali xavfsiz `.env` sozlamalari
 
@@ -28,7 +28,6 @@ pubg_uc_bot/
 ├── requirements.txt      # Asosiy kutubxonalar (aiogram, motor, pymongo, ...)
 │
 ├── bot.py                # Asosiy Telegram Bot ishga tushirish fayli
-├── api.py                # TezCheck webhook qabul qiluvchi FastAPI server
 ├── config.py             # Konfiguratsiya va .env sozlamalari
 ├── database.py           # motor orqali to'liq asinxron MongoDB Atlas qatlami
 │
@@ -44,6 +43,7 @@ pubg_uc_bot/
 ├── services/             # Tashqi servislar va biznes logika
 │   ├── __init__.py
 │   ├── tezcheck.py       # TezCheck to'lov tizimi integratsiyasi
+│   ├── payment_monitor.py # Kutilayotgan to'lovlarni bot ichida tekshirish
 │   ├── midasbuy.py       # Midasbuy API / Player validation
 │   └── order_service.py  # Buyurtmalarni yakunlash va xabarnomalar
 │
@@ -109,19 +109,13 @@ BOT_USERNAME=@your_bot_username
 ADMIN_IDS=123456789,987654321
 
 # MongoDB Atlas
-MONGODB_URI=mongodb://itpark0071_db_user:mgDFmDe8htPYk2Mk@ac-qlduf4i-shard-00-00.8lo77cr.mongodb.net:27017,ac-qlduf4i-shard-00-01.8lo77cr.mongodb.net:27017,ac-qlduf4i-shard-00-02.8lo77cr.mongodb.net:27017/?ssl=true&replicaSet=atlas-571xzs-shard-0&authSource=admin&appName=Cluster0
+MONGODB_URI=mongodb+srv://<db_username>:<db_password>@<cluster-host>/?retryWrites=true&w=majority
 MONGODB_DB_NAME=pubg_uc_db
-
-# Webhook API sozlamalari
-WEBHOOK_HOST=0.0.0.0
-WEBHOOK_PORT=8000
-WEBHOOK_BASE_URL=https://your-domain.com
 
 # TezCheck to'lov tizimi
 TEZCHECK_API_KEY=your_tezcheck_key
 TEZCHECK_CASH_DESK_CODE=your_cash_desk_code
 TEZCHECK_BASE_URL=https://api.tezcheck.uz
-TEZCHECK_SECRET_KEY=your_tezcheck_secret
 
 # Midasbuy API (ixtiyoriy)
 MIDASBUY_API_KEY=
@@ -135,16 +129,9 @@ Windows terminalida botni oddiy buyruq bilan yoqing:
 ```powershell
 python bot.py
 ```
-> Bot avtomatik tarzda `bot.db` SQLite bazasini, 6 ta asosiy UC paketlarini (60 UC, 325 UC, 660 UC, 1800 UC, 3850 UC, 8100 UC) va birlamchi sozlamalarni kiritadi.
+> Bot MongoDB Atlas'ga ulanadi, kerakli kolleksiyalarni va standart UC paketlarini үүсгэнэ.
 
-### 5-qadam: TezCheck Webhook serverini ishga tushirish (Alohida oynada)
-
-Avtomatik to'lovlar uchun FastAPI webhook serverini yoqing:
-```powershell
-python api.py
-```
-Server `http://localhost:8000` da ishga tushadi. Webhook manzili:
-`POST /api/webhooks/tezcheck/`
+TezCheck API kaliti va kassa kodi Render'dagi Environment Variables bo'limida ham kiritilgan bo'lishi kerak. `python bot.py` ishlayotgan paytda bot kutilayotgan to'lovlarni davriy tekshiradi; alohida webhook process yoki ommaviy webhook URL kerak emas.
 
 ---
 
@@ -170,6 +157,7 @@ Server `http://localhost:8000` da ishga tushadi. Webhook manzili:
    - **⚡ TezCheck (Avtomatik):** To'lov havolasi beriladi, to'langach bir zumda tasdiqlanadi.
    - **💳 Karta orqali (Qo'lda):** Adminning karta raqami ko'rsatiladi, foydalanuvchi to'lov cheki skrinshotini yuboradi.
    - **💰 Ichki balans:** Foydalanuvchining hisobidagi mablag' orqali bir zumda to'lash.
+7. **Balansni to'ldirish:** `Balansim` → `Balansni to'ldirish` ni tanlab, masalan `10000` yuboriladi. TezCheck to'lovni tasdiqlagach, summa avtomatik balansga qo'shiladi.
 
 ---
 
