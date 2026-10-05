@@ -1,9 +1,9 @@
 import logging
+import html
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.html import quote
 from config import ADMIN_IDS
 import database as db
 from keyboards.admin import (
@@ -575,7 +575,7 @@ async def admin_settings_menu(call: CallbackQuery, state: FSMContext):
         f"👤 <b>Egasi:</b> <b>{card_owner}</b>\n"
         f"🏦 <b>Bank:</b> {bank_name}\n"
         f"📞 <b>Support:</b> {support_username}\n"
-        f"📢 <b>Isbot kanali:</b> {quote(proof_channel_url)}\n"
+        f"📢 <b>Isbot kanali:</b> {html.escape(proof_channel_url)}\n"
         f"🔧 <b>Yetkazish rejimi:</b> <b>{delivery_mode}</b>\n"
         f"{SUB_DIVIDER}\n"
         f"O'zgartirish uchun kerakli tugmani bosing 👇"

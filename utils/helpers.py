@@ -45,6 +45,8 @@ def format_order_summary(order: Dict[str, Any]) -> str:
         date_str = created_at.strftime("%Y-%m-%d %H:%M")
     elif created_at:
         date_str = str(created_at)[:16]
+    else:
+        date_str = "—"
     proof_sent = order.get("proof_sent", False)
     proof_msg_id = order.get("proof_message_id")
     if proof_sent and proof_msg_id:
