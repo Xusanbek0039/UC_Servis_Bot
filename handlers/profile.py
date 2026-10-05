@@ -1,9 +1,14 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.context import FSMContext
+from uuid import uuid4
 import database as db
 from utils.helpers import format_currency, DIVIDER, SUB_DIVIDER
-from keyboards.user import profile_keyboard, balance_keyboard, support_keyboard, nav_back_home_keyboard
+from keyboards.user import profile_keyboard, balance_keyboard, support_keyboard, nav_back_home_keyboard, balance_topup_keyboard
 from emojis import E
+from states.order import TopUpStates
+from services.tezcheck import TezCheckService
+from services.payment_monitor import check_tezcheck_payment
 
 router = Router()
 
@@ -61,25 +66,94 @@ async def user_balance(call: CallbackQuery):
 
 
 @router.callback_query(F.data == "btn_topup_balance")
-async def user_topup_balance(call: CallbackQuery):
-    """Prompt user on how to topup internal balance."""
-    support_username = await db.get_setting("support_username", "@PubgUcSupport")
-    card_num = await db.get_setting("card_number", "8600 0000 0000 1234")
-    card_owner = await db.get_setting("card_owner", "PUBG OPERATOR")
-
+async def user_topup_balance(call: CallbackQuery, state: FSMContext):
+    """Ask for an amount, then create a one-time TezCheck bill."""
+    await state.set_state(TopUpStates.WAITING_AMOUNT)
     text = (
         f"{DIVIDER}\n"
-        f"   {E('card')} <b>BALANS TO'LDIRISH</b>\n"
+        f"   {E('balance')} <b>BALANSNI AVTOMATIK TO‘LDIRISH</b>\n"
         f"{DIVIDER}\n\n"
-        f"Hisobingizni to'ldirish uchun operator kartasiga to'lov qiling va chekni adminga yuboring:\n\n"
-        f"{E('card')} <b>Karta:</b> <code>{card_num}</code>\n"
-        f"{E('profile')} <b>Egasi:</b> <b>{card_owner}</b>\n"
-        f"🆔 <b>Sizning ID:</b> <code>{call.from_user.id}</code>\n"
-        f"{SUB_DIVIDER}\n"
-        f"To'lov qilgach, {support_username} profiliga chekni va o'z ID raqamingizni yuboring."
+        "Qancha pul qo‘shmoqchisiz? Summani so‘mda yuboring.\n"
+        "Masalan: <code>10000</code>\n\n"
+        "Eng kam to‘ldirish: <b>1 000 so‘m</b>. To‘lov tasdiqlangach mablag‘ balansingizga avtomatik tushadi."
     )
-    await call.message.edit_text(text, reply_markup=support_keyboard(support_username))
+    await call.message.edit_text(text, reply_markup=nav_back_home_keyboard())
     await call.answer()
+
+
+@router.message(TopUpStates.WAITING_AMOUNT)
+async def create_balance_topup(message: Message, state: FSMContext):
+    raw_amount = (message.text or "").strip().replace(" ", "").replace(",", "").replace("_", "")
+    if not raw_amount.isdigit():
+        await message.answer("Summani faqat raqam bilan yuboring. Masalan: <code>10000</code>")
+        return
+    amount = int(raw_amount)
+    if amount < 1000:
+        await message.answer("Eng kam to‘ldirish 1 000 so‘m. Boshqa summani kiriting:")
+        return
+
+    topup_id = f"TOPUP-{message.from_user.id}-{uuid4().hex[:12]}"
+    success, pay_url, bill_id, error = await TezCheckService.create_payment_bill(
+        order_id=topup_id,
+        amount=amount,
+        description=f"Balansni to‘ldirish {format_currency(amount)}",
+    )
+    if not success:
+        logger_message = f"Balans to‘ldirish uchun to‘lov havolasi yaratilmadi: {error}"
+        await message.answer(
+            f"{DIVIDER}\n⚠️ <b>To‘lov havolasi yaratilmadi</b>\n\n{error}\n{DIVIDER}",
+            reply_markup=balance_keyboard(),
+        )
+        await state.clear()
+        return
+
+    amount_minor = amount * 100
+    await db.create_payment(
+        order_id=topup_id,
+        amount=amount,
+        payment_method="TEZCHECK",
+        bill_id=bill_id,
+        amount_minor=amount_minor,
+        payment_type="BALANCE_TOPUP",
+        telegram_id=message.from_user.id,
+    )
+    await state.clear()
+    await message.answer(
+        f"{DIVIDER}\n⚡ <b>BALANSNI TO‘LDIRISH</b>\n{DIVIDER}\n\n"
+        f"To‘lov summasi: <b>{format_currency(amount)}</b>\n"
+        "To‘lovni amalga oshiring. Tasdiqlangach pul avtomatik balansga qo‘shiladi.",
+        reply_markup=balance_topup_keyboard(pay_url, topup_id),
+    )
+
+
+@router.callback_query(F.data.startswith("check_topup:"))
+async def check_balance_topup(call: CallbackQuery):
+    topup_id = call.data.split(":", 1)[1]
+    payment = await db.get_payment_by_order(topup_id)
+    if not payment or payment.get("payment_type") != "BALANCE_TOPUP" or payment.get("telegram_id") != call.from_user.id:
+        await call.answer("To‘lov topilmadi.", show_alert=True)
+        return
+    if payment.get("status") == "PAID":
+        await call.answer("To‘lov oldin tasdiqlangan.", show_alert=True)
+        return
+
+    result = await check_tezcheck_payment(call.bot, payment, notify_user=False)
+    if result == "paid":
+        user = await db.get_user(call.from_user.id)
+        balance = user.get("balance", 0) if user else 0
+        await call.message.edit_text(
+            f"✅ <b>To‘lov tasdiqlandi!</b>\n\n"
+            f"{format_currency(payment.get('amount', 0))} balansingizga qo‘shildi.\n"
+            f"Joriy balans: <b>{format_currency(balance)}</b>",
+            reply_markup=balance_keyboard(),
+        )
+        await call.answer()
+    elif result == "mismatch":
+        await call.answer("To‘lov summasi mos kelmadi. Operatorga murojaat qiling.", show_alert=True)
+    elif result == "error":
+        await call.answer("To‘lov holatini hozir tekshirib bo‘lmadi. Keyinroq urinib ko‘ring.", show_alert=True)
+    else:
+        await call.answer("To‘lov hali tasdiqlanmadi. Birozdan keyin qayta tekshiring.", show_alert=True)
 
 
 @router.callback_query(F.data == "btn_help")
