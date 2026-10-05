@@ -10,7 +10,7 @@ Ushbu loyiha **Django, Docker, Celery, Redis va PostgreSQL kabi og'ir vositalard
 
 - **Dasturlash tili:** Python 3.12+
 - **Telegram Bot Framework:** Aiogram 3.x (Asinxron FSM, zamonaviy Routerlar, Inline tugmalar)
-- **Ma'lumotlar bazasi:** SQLite (`aiosqlite` - asinxron, o'rnatish talab qilmaydi, `bot.db` faylida saqlanadi)
+- **Ma'lumotlar bazasi:** MongoDB Atlas (`motor` + `pymongo` - asinxron, bulutli NoSQL ma'lumotlar bazasi)
 - **To'lov Webhook Serveri:** FastAPI + Uvicorn (TezCheck to'lovlarini qabul qilish uchun)
 - **HTTP Client:** HTTPX (Asinxron HTTP so'rovlar, HMAC-SHA256 imzolar)
 - **Konfiguratsiya:** `python-dotenv` orqali xavfsiz `.env` sozlamalari
@@ -22,16 +22,15 @@ Ushbu loyiha **Django, Docker, Celery, Redis va PostgreSQL kabi og'ir vositalard
 ```
 pubg_uc_bot/
 │
-├── .env                  # Maxfiy tokenlar va sozlamalar
+├── .env                  # Maxfiy tokenlar va MongoDB URI sozlamalari
 ├── .env.example          # Sozlamalar namunasi
 ├── .gitignore            # Git istisno fayli
-├── requirements.txt      # 6 ta asosiy kutubxona
+├── requirements.txt      # Asosiy kutubxonalar (aiogram, motor, pymongo, ...)
 │
 ├── bot.py                # Asosiy Telegram Bot ishga tushirish fayli
 ├── api.py                # TezCheck webhook qabul qiluvchi FastAPI server
 ├── config.py             # Konfiguratsiya va .env sozlamalari
-├── database.py           # aiosqlite orqali to'liq asinxron DB qatlami
-├── bot.db                # SQLite ma'lumotlar bazasi (avtomatik yaratiladi)
+├── database.py           # motor orqali to'liq asinxron MongoDB Atlas qatlami
 │
 ├── handlers/             # Telegram bot handlerlari
 │   ├── __init__.py
@@ -86,12 +85,13 @@ pip install -r requirements.txt
 
 Kutubxonalar ro'yxati:
 ```
-aiogram>=3.4.1
-aiosqlite>=0.20.0
+aiogram>=3.13.0
+motor>=3.7.0
+pymongo>=4.9.0
 python-dotenv>=1.0.1
 httpx>=0.27.0
 fastapi>=0.110.0
-uvicorn>=0.28.0
+uvicorn>=0.30.0
 ```
 
 ### 3-qadam: `.env` faylini sozlash
@@ -107,6 +107,10 @@ Copy-Item .env.example .env
 BOT_TOKEN=your_bot_token_here
 BOT_USERNAME=@your_bot_username
 ADMIN_IDS=123456789,987654321
+
+# MongoDB Atlas
+MONGODB_URI=mongodb://itpark0071_db_user:mgDFmDe8htPYk2Mk@ac-qlduf4i-shard-00-00.8lo77cr.mongodb.net:27017,ac-qlduf4i-shard-00-01.8lo77cr.mongodb.net:27017,ac-qlduf4i-shard-00-02.8lo77cr.mongodb.net:27017/?ssl=true&replicaSet=atlas-571xzs-shard-0&authSource=admin&appName=Cluster0
+MONGODB_DB_NAME=pubg_uc_db
 
 # Webhook API sozlamalari
 WEBHOOK_HOST=0.0.0.0
