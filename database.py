@@ -322,6 +322,15 @@ async def update_order_status(order_id: str, status: str) -> bool:
     return res.modified_count > 0
 
 
+async def update_order_payment_method(order_id: str, payment_method: str) -> bool:
+    db = get_db()
+    res = await db.orders.update_one(
+        {"order_id": order_id},
+        {"$set": {"payment_method": payment_method, "updated_at": datetime.now()}},
+    )
+    return res.modified_count > 0
+
+
 async def attach_order_screenshot(order_id: str, file_id: str) -> bool:
     db = get_db()
     res = await db.orders.update_one(
