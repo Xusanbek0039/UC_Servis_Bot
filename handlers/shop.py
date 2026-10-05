@@ -2,68 +2,125 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from states.order import OrderStates
-from keyboards.user import products_keyboard, payment_methods_keyboard, cancel_keyboard
+from keyboards.user import (
+    products_keyboard,
+    payment_methods_keyboard,
+    player_confirm_keyboard,
+    nav_back_home_keyboard,
+)
 import database as db
 from services.midasbuy import MidasbuyService
-from utils.helpers import is_valid_player_id, format_currency
+from utils.helpers import is_valid_player_id, format_currency, DIVIDER, SUB_DIVIDER
+from emojis import E
 
 router = Router()
 
 
 @router.callback_query(F.data == "btn_buy_uc")
 async def start_buy_uc(call: CallbackQuery, state: FSMContext):
-    """User clicks Buy UC."""
+    """User clicks Buy UC button."""
     await state.clear()
     await state.set_state(OrderStates.WAITING_PLAYER_ID)
 
     text = (
-        "🎮 <b>PUBG Mobile UC xarid qilish</b>\n\n"
-        "🆔 <b>PUBG Mobile Player ID'ingizni yuboring:</b>\n"
-        "<i>(Masalan: 5123456789)</i>"
+        f"{DIVIDER}\n"
+        f"   {E('game')} <b>PUBG MOBILE PLAYER ID</b>\n"
+        f"{DIVIDER}\n\n"
+        f"🆔 <b>PUBG Mobile Player ID'ingizni yuboring:</b>\n\n"
+        f"{E('bulb')} <i>Player ID'ni PUBG Mobile profil sahifangizdan (Avatar ustiga bosib) nusxalab olishingiz mumkin.\n"
+        f"Masalan: <code>5123456789</code></i>"
     )
-    await call.message.edit_text(text, reply_markup=cancel_keyboard())
+    await call.message.edit_text(text, reply_markup=nav_back_home_keyboard("btn_home"))
     await call.answer()
 
 
 @router.message(OrderStates.WAITING_PLAYER_ID)
 async def process_player_id(message: Message, state: FSMContext):
-    """Validate player ID and display active UC packages."""
+    """Validate player ID format and lookup via Midasbuy."""
     player_id = message.text.strip()
 
     if not is_valid_player_id(player_id):
-        await message.answer(
-            "⚠️ <b>Noto'g'ri Player ID formati!</b>\n"
-            "Player ID faqat 8 dan 12 gacha bo'lgan raqamlardan iborat bo'lishi kerak.\n\n"
-            "Qaytadan kiriting:",
-            reply_markup=cancel_keyboard(),
+        text = (
+            f"{DIVIDER}\n"
+            f"   {E('error')} <b>NOTO'G'RI FORMAT</b>\n"
+            f"{DIVIDER}\n\n"
+            f"Player ID faqat raqamlardan iborat bo'lishi kerak (kamida 5-12 ta raqam).\n\n"
+            f"Iltimos, tekshirib qaytadan kiriting:"
         )
+        await message.answer(text, reply_markup=nav_back_home_keyboard("btn_home"))
         return
 
     # Check via Midasbuy service
+    wait_msg = await message.answer(f"{E('clock')} <i>Player ID tekshirilmoqda...</i>")
     is_valid, nickname, err = await MidasbuyService.validate_player(player_id)
+
     if not is_valid:
-        await message.answer(
-            f"❌ <b>Xatolik:</b> {err}\n\nIltimos, tekshirib qayta kiriting:",
-            reply_markup=cancel_keyboard(),
+        await wait_msg.edit_text(
+            f"{DIVIDER}\n"
+            f"   {E('error')} <b>PLAYER TOPILMADI</b>\n"
+            f"{DIVIDER}\n\n"
+            f"{err}\n\n"
+            f"Iltimos, Player ID'ni tekshirib qayta yuboring:",
+            reply_markup=nav_back_home_keyboard("btn_home"),
         )
         return
 
     # Save player ID and nickname in FSM
     await state.update_data(player_id=player_id, nickname=nickname)
 
+    text = (
+        f"{DIVIDER}\n"
+        f"   {E('profile')} <b>PLAYER TASDIQLASH</b>\n"
+        f"{DIVIDER}\n\n"
+        f"{E('game')} <b>O'yin:</b> PUBG Mobile\n"
+        f"{E('profile')} <b>Nickname:</b> <b>{nickname}</b>\n"
+        f"🆔 <b>Player ID:</b> <code>{player_id}</code>\n"
+        f"{SUB_DIVIDER}\n"
+        f"{E('verified')} <i>Ushbu akkauntga UC yuklansinmi?</i>"
+    )
+    await wait_msg.edit_text(text, reply_markup=player_confirm_keyboard())
+
+
+@router.callback_query(F.data == "confirm_player_id")
+async def show_products_list(call: CallbackQuery, state: FSMContext):
+    """Player confirmed; display active UC packages."""
+    data = await state.get_data()
+    player_id = data.get("player_id")
+    nickname = data.get("nickname", "Player")
+
+    if not player_id:
+        await call.answer("Iltimos, avval Player ID kiriting.", show_alert=True)
+        return await start_buy_uc(call, state)
+
     products = await db.get_active_products()
     if not products:
-        await message.answer("⚠️ Hozirda sotuvda faol paketlar mavjud emas.")
+        await call.message.edit_text(
+            f"{DIVIDER}\n"
+            f"{E('error')} <b>Hozirda sotuvda faol UC paketlar mavjud emas.</b>\n"
+            f"Birozdan so'ng qayta urinib ko'ring.\n"
+            f"{DIVIDER}",
+            reply_markup=nav_back_home_keyboard("btn_home"),
+        )
         await state.clear()
         return
 
     await state.set_state(OrderStates.WAITING_PRODUCT)
     text = (
-        f"👤 <b>Player:</b> {nickname}\n"
+        f"{DIVIDER}\n"
+        f"   {E('uc')} <b>UC PAKETINI TANLANG</b>\n"
+        f"{DIVIDER}\n\n"
+        f"{E('profile')} <b>Player:</b> <b>{nickname}</b>\n"
         f"🆔 <b>ID:</b> <code>{player_id}</code>\n\n"
-        f"💎 <b>Kerakli UC paketini tanlang:</b>"
+        f"O'zingizga kerakli UC paketini tanlang 👇"
     )
-    await message.answer(text, reply_markup=products_keyboard(products))
+    await call.message.edit_text(text, reply_markup=products_keyboard(products))
+    await call.answer()
+
+
+@router.callback_query(F.data == "back_to_products")
+async def back_to_products_handler(call: CallbackQuery, state: FSMContext):
+    """Back button from payment method back to product selection."""
+    await show_products_list(call, state)
 
 
 @router.callback_query(OrderStates.WAITING_PRODUCT, F.data.startswith("buy_prod:"))
@@ -73,14 +130,14 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
     product = await db.get_product(product_id)
 
     if not product:
-        await call.answer("Paket topilmadi!", show_alert=True)
+        await call.answer("Tanlangan paket topilmadi!", show_alert=True)
         return
 
     data = await state.get_data()
     player_id = data.get("player_id")
-    nickname = data.get("nickname", "")
+    nickname = data.get("nickname", "Player")
 
-    # Create order in SQLite
+    # Create order in MongoDB
     order_id = await db.create_order(
         telegram_id=call.from_user.id,
         player_id=player_id,
@@ -96,11 +153,19 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
     user_balance = user["balance"] if user else 0.0
 
     summary_text = (
-        f"📦 <b>Buyurtma yaratildi:</b> <code>{order_id}</code>\n\n"
-        f"🎮 <b>Player:</b> {nickname} (ID: <code>{player_id}</code>)\n"
-        f"💎 <b>Paket:</b> {product['name']}\n"
-        f"💰 <b>Narxi:</b> <b>{format_currency(product['price'])}</b>\n\n"
-        f"💳 To'lov usulini tanlang 👇"
+        f"{DIVIDER}\n"
+        f"   {E('order')} <b>BUYURTMA TASDIQLASH</b>\n"
+        f"{DIVIDER}\n\n"
+        f"📦 <b>Buyurtma kodi:</b> <code>{order_id}</code>\n"
+        f"{E('game')} <b>O'yin:</b> PUBG Mobile\n\n"
+        f"{E('profile')} <b>Player:</b> <b>{nickname}</b>\n"
+        f"🆔 <b>Player ID:</b> <code>{player_id}</code>\n"
+        f"{SUB_DIVIDER}\n"
+        f"{E('uc')} <b>Paket:</b> <b>{product['name']}</b>\n"
+        f"{E('balance')} <b>To'lov summasi:</b> <b>{format_currency(product['price'])}</b>\n"
+        f"{E('lightning')} <b>Yetkazib berish:</b> Tezkor (1-5 daqiqa)\n"
+        f"{SUB_DIVIDER}\n\n"
+        f"To'lov usulini tanlang 👇"
     )
 
     await call.message.edit_text(

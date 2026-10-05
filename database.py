@@ -266,6 +266,13 @@ async def create_order(telegram_id: int, player_id: str, product_id: int, price:
         "status": "WAITING_PAYMENT",
         "payment_method": payment_method,
         "screenshot_file_id": "",
+        # Proof channel fields
+        "proof_message_id": None,
+        "proof_channel_id": "",
+        "proof_sent": False,
+        "proof_status": "NOT_SENT",
+        "proof_created_at": None,
+        "proof_updated_at": None,
         "created_at": datetime.now(),
         "updated_at": datetime.now(),
     }
@@ -340,6 +347,30 @@ async def attach_order_screenshot(order_id: str, file_id: str) -> bool:
     return res.modified_count > 0
 
 
+async def update_order_proof_info(order_id: str, message_id: int, channel_id: str, status: str) -> bool:
+    """Updates proof post message_id, channel_id and proof_status."""
+    db = get_db()
+    order = await db.orders.find_one({"order_id": order_id})
+    if not order:
+        return False
+
+    update_fields = {
+        "proof_message_id": message_id,
+        "proof_channel_id": str(channel_id),
+        "proof_sent": True,
+        "proof_status": status,
+        "proof_updated_at": datetime.now(),
+    }
+    if not order.get("proof_created_at"):
+        update_fields["proof_created_at"] = datetime.now()
+
+    res = await db.orders.update_one(
+        {"order_id": order_id},
+        {"$set": update_fields},
+    )
+    return res.modified_count > 0
+
+
 async def get_orders_by_status(status: str, limit: int = 10) -> List[Dict[str, Any]]:
     db = get_db()
     cursor = db.orders.find({"status": status}).sort("created_at", DESCENDING).limit(limit)
@@ -407,6 +438,21 @@ async def get_order_stats() -> Dict[str, Any]:
         "total_revenue": total_revenue,
         "completed_orders": completed_orders,
         "cancelled_orders": cancelled_orders,
+    }
+
+
+async def get_proof_stats() -> Dict[str, Any]:
+    """Returns analytics regarding proof channel postings."""
+    db = get_db()
+    total_completed = await db.orders.count_documents({"status": "COMPLETED"})
+    proof_sent = await db.orders.count_documents({"proof_sent": True})
+    proof_completed = await db.orders.count_documents({"proof_status": "COMPLETED"})
+    proof_not_sent = await db.orders.count_documents({"status": "COMPLETED", "proof_sent": False})
+    return {
+        "total_completed": total_completed,
+        "proof_sent": proof_sent,
+        "proof_completed": proof_completed,
+        "proof_not_sent": proof_not_sent,
     }
 
 

@@ -10,7 +10,7 @@ load_dotenv(BASE_DIR / ".env")
 
 # Telegram Bot
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
-BOT_USERNAME = os.getenv("BOT_USERNAME", "").strip()
+BOT_USERNAME = os.getenv("BOT_USERNAME", "").strip().lstrip("@")
 
 # Admin IDs
 _raw_admins = os.getenv("ADMIN_IDS", "").split(",")
@@ -33,6 +33,14 @@ TEZCHECK_WEBHOOK_SECRET = os.getenv("TEZCHECK_WEBHOOK_SECRET", "").strip()
 MIDASBUY_BASE_URL = os.getenv("MIDASBUY_BASE_URL", "https://api.midasbuy.com").rstrip("/")
 MIDASBUY_API_KEY = os.getenv("MIDASBUY_API_KEY", "").strip()
 MIDASBUY_SECRET = os.getenv("MIDASBUY_SECRET", "").strip()
+
+# Proof Channel Configuration
+PROOF_CHANNEL_ID = os.getenv("PROOF_CHANNEL_ID", "").strip()
+PROOF_ENABLED = os.getenv("PROOF_ENABLED", "True").strip().lower() in ("true", "1", "yes")
+PROOF_SHOW_PRICE = os.getenv("PROOF_SHOW_PRICE", "True").strip().lower() in ("true", "1", "yes")
+PROOF_SHOW_PLAYER_ID = os.getenv("PROOF_SHOW_PLAYER_ID", "True").strip().lower() in ("true", "1", "yes")
+PROOF_HASHTAGS = os.getenv("PROOF_HASHTAGS", "True").strip().lower() in ("true", "1", "yes")
+PROOF_AUTO_POST = os.getenv("PROOF_AUTO_POST", "True").strip().lower() in ("true", "1", "yes")
 
 # FastAPI Webhook Server Port
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", 8000))

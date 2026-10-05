@@ -3,12 +3,20 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from states.order import OrderStates
-from keyboards.user import tezcheck_pay_keyboard, cancel_keyboard, main_menu_keyboard
+from keyboards.user import (
+    tezcheck_pay_keyboard,
+    cancel_keyboard,
+    main_menu_keyboard,
+    order_success_keyboard,
+    payment_methods_keyboard,
+    nav_back_home_keyboard,
+)
 from config import ADMIN_IDS
 import database as db
 from services.tezcheck import TezCheckService
 from services.order_service import OrderService
-from utils.helpers import format_currency
+from utils.helpers import format_currency, DIVIDER, SUB_DIVIDER, format_order_summary
+from emojis import E
 
 router = Router()
 logger = logging.getLogger("handlers.payment")
@@ -29,14 +37,12 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
         return
 
     # Update payment method on order
-    async with await db.get_connection() as conn:
-        await conn.execute("UPDATE orders SET payment_method = ? WHERE order_id = ?", (method, order_id))
-        await conn.commit()
+    await db.update_order_payment_method(order_id, method)
 
     # 1. Internal Balance Payment
     if method == "BALANCE":
         user = await db.get_user(call.from_user.id)
-        if not user or user["balance"] < price:
+        if not user or user.get("balance", 0.0) < price:
             await call.answer("Balansingizda yetarli mablag' mavjud emas!", show_alert=True)
             return
 
@@ -46,20 +52,24 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
         await OrderService.handle_payment_success(bot, order_id=order_id, provider_tx_id="BALANCE_TX")
 
         await state.clear()
-        await call.message.delete()
-        is_admin = call.from_user.id in ADMIN_IDS
-        await call.message.answer(
-            f"🎉 <b>To'lov balansingizdan muvaffaqiyatli yechildi!</b>\n\n"
-            f"📦 Buyurtma: <code>{order_id}</code>\n"
-            f"UC qisqa vaqt ichida o'yindagi hisobingizga yetkaziladi.",
-            reply_markup=main_menu_keyboard(is_admin=is_admin),
+        text = (
+            f"{DIVIDER}\n"
+            f"   {E('success')} <b>TO'LOV MUVAFFAQIYATLI</b>\n"
+            f"{DIVIDER}\n\n"
+            f"{E('balance')} <b>Mablag' balansingizdan yechildi!</b>\n\n"
+            f"📦 <b>Buyurtma kodi:</b> <code>{order_id}</code>\n"
+            f"{E('uc')} <b>Paket:</b> {order['product_name']}\n"
+            f"🆔 <b>Player ID:</b> <code>{order['player_id']}</code>\n"
+            f"{SUB_DIVIDER}\n"
+            f"{E('lightning')} <i>UC qisqa vaqt ichida o'yindagi hisobingizga yuklanadi.</i>"
         )
+        await call.message.edit_text(text, reply_markup=order_success_keyboard())
         await call.answer()
         return
 
     # 2. TezCheck Payment
     if method == "TEZCHECK":
-        wait_msg = await call.message.edit_text("⏳ <i>TezCheck to'lov havolasi yaratilmoqda...</i>")
+        wait_msg = await call.message.edit_text(f"{E('clock')} <i>TezCheck to'lov havolasi yaratilmoqda...</i>")
         success, pay_url, err = await TezCheckService.create_payment_bill(
             order_id=order_id,
             amount=price,
@@ -68,8 +78,12 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
 
         if not success:
             await wait_msg.edit_text(
-                f"⚠️ To'lov tizimida vaqtinchalik muammo: {err}\nIltimos, karta orqali to'lang.",
-                reply_markup=cancel_keyboard(),
+                f"{DIVIDER}\n"
+                f"{E('error')} <b>To'lov tizimida vaqtinchalik muammo yuz berdi.</b>\n\n"
+                f"Sabab: {err}\n"
+                f"Iltimos, karta orqali to'lov qiling.\n"
+                f"{DIVIDER}",
+                reply_markup=nav_back_home_keyboard("back_to_products"),
             )
             await call.answer()
             return
@@ -77,11 +91,15 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
         await db.create_payment(order_id=order_id, amount=price, payment_method="TEZCHECK")
 
         text = (
-            f"⚡ <b>TezCheck orqali to'lov</b>\n\n"
-            f"📦 Buyurtma: <code>{order_id}</code>\n"
-            f"💎 Paket: {order['product_name']}\n"
-            f"💰 To'lov summasi: <b>{format_currency(price)}</b>\n\n"
-            f"To'lovni amalga oshirish uchun quyidagi tugmani bosing 👇"
+            f"{DIVIDER}\n"
+            f"   {E('lightning')} <b>TEZCHECK ORQALI TO'LOV</b>\n"
+            f"{DIVIDER}\n\n"
+            f"📦 <b>Buyurtma:</b> <code>{order_id}</code>\n"
+            f"{E('uc')} <b>Paket:</b> <b>{order['product_name']}</b>\n"
+            f"{E('balance')} <b>To'lov summasi:</b> <b>{format_currency(price)}</b>\n"
+            f"{SUB_DIVIDER}\n"
+            f"{E('verified')} <i>To'lov xavfsiz TezCheck shlyuzi orqali qabul qilinadi. To'lov qilingach, bot avtomatik tasdiqlaydi.</i>\n\n"
+            f"To'lovni davom ettirish uchun quyidagi tugmani bosing 👇"
         )
         await wait_msg.edit_text(text, reply_markup=tezcheck_pay_keyboard(pay_url, order_id))
         await call.answer()
@@ -97,16 +115,25 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
         await state.set_state(OrderStates.WAITING_SCREENSHOT)
 
         text = (
-            f"💳 <b>Karta orqali to'lov</b>\n\n"
-            f"Karta raqami:\n<code>{card_num}</code>\n"
-            f"Egasi: <b>{card_owner}</b>\n"
-            f"Bank: <b>{bank_name}</b>\n\n"
-            f"📦 Buyurtma: <code>{order_id}</code>\n"
-            f"💰 To'lov summasi: <b>{format_currency(price)}</b>\n\n"
-            f"❗️ <b>To'lovni amalga oshiring va chek/skrinshotni shu yerga rasm holida yuboring.</b>"
+            f"{DIVIDER}\n"
+            f"   {E('card')} <b>KARTA ORQALI TO'LOV</b>\n"
+            f"{DIVIDER}\n\n"
+            f"{E('balance')} <b>To'lov summasi:</b>\n"
+            f"👉 <b>{format_currency(price)}</b>\n\n"
+            f"{E('card')} <b>Karta raqami:</b>\n"
+            f"<code>{card_num}</code> <i>(nusxalash uchun ustiga bosing)</i>\n\n"
+            f"{E('profile')} <b>Karta egasi:</b> <b>{card_owner}</b>\n"
+            f"🏦 <b>Bank:</b> {bank_name}\n"
+            f"📦 <b>Buyurtma kodi:</b> <code>{order_id}</code>\n"
+            f"{SUB_DIVIDER}\n"
+            f"<b>Qadamlar:</b>\n"
+            f"1️⃣ Yuqoridagi kartaga to'lov qiling.\n"
+            f"2️⃣ To'lov chekini (skrinshot) shu yerga yuboring.\n"
+            f"3️⃣ Operator tekshirib, darhol UC yuklaydi.\n"
+            f"{SUB_DIVIDER}\n\n"
+            f"📎 <b>Iltimos, chek skrinshotini rasm holatida yuboring:</b>"
         )
-        await call.message.delete()
-        await call.message.answer(text, reply_markup=cancel_keyboard())
+        await call.message.edit_text(text, reply_markup=cancel_keyboard())
         await call.answer()
 
 
@@ -129,8 +156,8 @@ async def process_screenshot(message: Message, state: FSMContext, bot: Bot):
     admin_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ To‘lovni tasdiqlash", callback_data=f"adm_appr_ord:{order_id}"),
-                InlineKeyboardButton(text="❌ To‘lovni rad etish", callback_data=f"adm_rej_ord:{order_id}"),
+                InlineKeyboardButton(text=f"{E('check', True)} To'lovni tasdiqlash", callback_data=f"adm_appr_ord:{order_id}"),
+                InlineKeyboardButton(text=f"{E('cross', True)} Rad etish", callback_data=f"adm_rej_ord:{order_id}"),
             ]
         ]
     )
@@ -138,58 +165,106 @@ async def process_screenshot(message: Message, state: FSMContext, bot: Bot):
     caption = (
         f"🟡 <b>YANGI TO'LOV CHEKI (SKRINSHOT)!</b>\n\n"
         f"📦 <b>Order:</b> <code>{order_id}</code>\n"
-        f"👤 <b>User:</b> @{message.from_user.username or '—'} (ID: <code>{message.from_user.id}</code>)\n"
-        f"🎮 <b>Player ID:</b> <code>{order['player_id']}</code>\n"
+        f"👤 <b>Foydalanuvchi:</b> @{order.get('username')} (ID: <code>{order['user_id']}</code>)\n"
+        f"🆔 <b>Player ID:</b> <code>{order['player_id']}</code>\n"
         f"💎 <b>Paket:</b> {order['product_name']}\n"
-        f"💰 <b>Summa:</b> {format_currency(order['price'])}\n\n"
-        f"<i>Chekni tekshiring va tasdiqlang yoki rad eting.</i>"
+        f"💰 <b>Narx:</b> {format_currency(order['price'])}\n\n"
+        f"To'lovni tasdiqlaysizmi?"
     )
 
     for admin_id in ADMIN_IDS:
         try:
             if message.photo:
                 await bot.send_photo(chat_id=admin_id, photo=file_id, caption=caption, reply_markup=admin_kb)
-            else:
+            elif message.document:
                 await bot.send_document(chat_id=admin_id, document=file_id, caption=caption, reply_markup=admin_kb)
         except Exception as e:
-            logger.error(f"Failed to forward check to admin {admin_id}: {e}")
+            logger.error(f"Failed to forward receipt to admin {admin_id}: {e}")
 
     await state.clear()
-    is_admin = message.from_user.id in ADMIN_IDS
-    await message.answer(
-        "⏳ <b>To‘lovingiz admin tomonidan tekshirilmoqda.</b>\n\n"
-        "Tez orada chekingiz tasdiqlanadi va UC akkauntingizga yuboriladi.",
-        reply_markup=main_menu_keyboard(is_admin=is_admin),
+    reply_text = (
+        f"{DIVIDER}\n"
+        f"   {E('success')} <b>CHEK QABUL QILINDI</b>\n"
+        f"{DIVIDER}\n\n"
+        f"📦 <b>Buyurtma kodi:</b> <code>{order_id}</code>\n"
+        f"{E('uc')} <b>Paket:</b> {order['product_name']}\n"
+        f"{E('balance')} <b>Summa:</b> {format_currency(order['price'])}\n"
+        f"{SUB_DIVIDER}\n"
+        f"{E('clock')} <i>To'lov cheki operator tekshiruviga yuborildi.\n"
+        f"Odatda bir necha daqiqa ichida tekshirilib, UC o'yindagi profilingizga yetkaziladi.</i>"
     )
+    await message.answer(reply_text, reply_markup=order_success_keyboard())
 
 
 @router.callback_query(F.data.startswith("chk_pay:"))
-async def check_order_payment(call: CallbackQuery):
-    """User clicks verify payment."""
+async def check_payment_manual(call: CallbackQuery, bot: Bot):
+    """User manually requests payment check for TezCheck."""
+    order_id = call.data.split(":")[1]
+    order = await db.get_order(order_id)
+
+    if not order:
+        await call.answer("Buyurtma topilmadi!", show_alert=True)
+        return
+
+    if order["status"] in ("PAID", "PROCESSING", "COMPLETED"):
+        await call.answer("✅ To'lov tasdiqlangan va UC yetkazilmoqda!", show_alert=True)
+        await call.message.edit_text(
+            f"{DIVIDER}\n"
+            f"   {E('success')} <b>TO'LOV TASDIQLANGAN</b>\n"
+            f"{DIVIDER}\n\n"
+            f"📦 <b>Buyurtma:</b> <code>{order_id}</code>\n"
+            f"{E('uc')} <b>Paket:</b> {order['product_name']}\n\n"
+            f"{E('lightning')} <i>Buyurtmangiz bajarilmoqda.</i>",
+            reply_markup=order_success_keyboard(),
+        )
+    else:
+        await call.answer("⏳ To'lov hali qabul qilinmadi. Iltimos, to'lovni amalga oshiring.", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("change_method:"))
+async def change_payment_method(call: CallbackQuery, state: FSMContext):
+    """User changes payment method for existing order."""
     order_id = call.data.split(":")[1]
     order = await db.get_order(order_id)
     if not order:
         await call.answer("Buyurtma topilmadi!", show_alert=True)
         return
 
-    if order["status"] in ("PAID", "PROCESSING", "COMPLETED"):
-        await call.message.delete()
-        is_admin = call.from_user.id in ADMIN_IDS
-        await call.message.answer(
-            f"✅ <b>To'lov muvaffaqiyatli qabul qilingan!</b>\nStatus: <b>{order['status']}</b>",
-            reply_markup=main_menu_keyboard(is_admin=is_admin),
-        )
-    else:
-        await call.answer("To'lov hali amalga oshirilmagan.", show_alert=True)
+    await state.update_data(order_id=order_id, product_id=order["product_id"], price=order["price"])
+    await state.set_state(OrderStates.WAITING_PAYMENT_METHOD)
+
+    user = await db.get_user(call.from_user.id)
+    user_balance = user["balance"] if user else 0.0
+
+    summary_text = (
+        f"{DIVIDER}\n"
+        f"   {E('order')} <b>TO'LOV USULINI O'ZGARTIRISH</b>\n"
+        f"{DIVIDER}\n\n"
+        f"📦 <b>Buyurtma:</b> <code>{order_id}</code>\n"
+        f"{E('uc')} <b>Paket:</b> <b>{order['product_name']}</b>\n"
+        f"{E('balance')} <b>To'lov summasi:</b> <b>{format_currency(order['price'])}</b>\n"
+        f"{SUB_DIVIDER}\n\n"
+        f"Yangi to'lov usulini tanlang 👇"
+    )
+    await call.message.edit_text(
+        summary_text,
+        reply_markup=payment_methods_keyboard(user_balance=user_balance, order_price=order["price"]),
+    )
+    await call.answer()
 
 
 @router.callback_query(F.data.startswith("cancel_ord:"))
-async def cancel_order_handler(call: CallbackQuery, state: FSMContext):
-    """Cancel order from checkout."""
+async def cancel_specific_order(call: CallbackQuery, state: FSMContext):
+    """Cancel order and return to main menu."""
     order_id = call.data.split(":")[1]
     await db.update_order_status(order_id, "CANCELLED")
     await state.clear()
+    await call.answer("❌ Buyurtma bekor qilindi.", show_alert=True)
+
     is_admin = call.from_user.id in ADMIN_IDS
-    await call.message.edit_text("❌ Buyurtma bekor qilindi.")
-    await call.message.answer("Asosiy menyudasiz 👇", reply_markup=main_menu_keyboard(is_admin=is_admin))
-    await call.answer()
+    await call.message.edit_text(
+        f"{DIVIDER}\n"
+        f"{E('cross')} <b>Buyurtma #{order_id} bekor qilindi.</b>\n"
+        f"{DIVIDER}",
+        reply_markup=main_menu_keyboard(is_admin=is_admin),
+    )

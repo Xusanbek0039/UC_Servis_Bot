@@ -119,6 +119,26 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
         "env_var": "EMOJI_BULB",
         "fallback": "💡",
     },
+    "proof": {
+        "env_var": "EMOJI_PROOF",
+        "fallback": "📢",
+    },
+    "processing": {
+        "env_var": "EMOJI_PROCESSING",
+        "fallback": "⚙️",
+    },
+    "time": {
+        "env_var": "EMOJI_TIME",
+        "fallback": "🕐",
+    },
+    "id": {
+        "env_var": "EMOJI_ID",
+        "fallback": "🆔",
+    },
+    "cart": {
+        "env_var": "EMOJI_CART",
+        "fallback": "🛒",
+    },
 }
 
 
