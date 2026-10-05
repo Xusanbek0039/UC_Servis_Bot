@@ -45,8 +45,14 @@ def format_order_summary(order: Dict[str, Any]) -> str:
         date_str = created_at.strftime("%Y-%m-%d %H:%M")
     elif created_at:
         date_str = str(created_at)[:16]
+    proof_sent = order.get("proof_sent", False)
+    proof_msg_id = order.get("proof_message_id")
+    if proof_sent and proof_msg_id:
+        proof_line = f"📢 <b>Isbot posti:</b> 🟢 Yuborilgan (#{proof_msg_id}) [{order.get('proof_status', 'OK')}]"
+    elif proof_sent:
+        proof_line = f"📢 <b>Isbot posti:</b> 🟢 Yuborilgan [{order.get('proof_status', 'OK')}]"
     else:
-        date_str = "Hozirgina"
+        proof_line = "📢 <b>Isbot posti:</b> ⚠️ Yuborilmagan"
 
     return (
         f"{DIVIDER}\n"

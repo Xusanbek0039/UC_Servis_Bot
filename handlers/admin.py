@@ -15,6 +15,7 @@ from keyboards.admin import (
 )
 from states.order import AdminProductStates, AdminSettingsStates
 from services.order_service import OrderService
+from services.proof_channel import ProofChannelService
 from utils.helpers import format_order_summary, format_currency, DIVIDER, SUB_DIVIDER, get_status_badge
 from emojis import E
 
@@ -199,6 +200,43 @@ async def deliver_order_manual(call: CallbackQuery, bot: Bot):
     await call.answer("✅ UC yuborildi deb tasdiqlandi!", show_alert=True)
     order = await db.get_order(order_id)
     await call.message.edit_text(format_order_summary(order), reply_markup=admin_order_detail_keyboard(order))
+
+
+@router.callback_query(F.data.startswith("adm_proof_send:") | F.data.startswith("adm_proof_upd:"))
+async def admin_trigger_proof(call: CallbackQuery, bot: Bot):
+    """Admin manually dispatches or updates proof post in the channel."""
+    if not is_admin(call.from_user.id):
+        return
+
+    order_id = call.data.split(":")[1]
+    order = await db.get_order(order_id)
+    if not order:
+        await call.answer("Buyurtma topilmadi!", show_alert=True)
+        return
+
+    # Choose target proof status based on actual order status
+    order_status = order.get("status", "")
+    if order_status == "COMPLETED":
+        target_proof_status = "COMPLETED"
+    elif order_status in ("PAID", "PROCESSING", "MANUAL_REVIEW"):
+        target_proof_status = "PROCESSING"
+    else:
+        target_proof_status = "RECEIVED"
+
+    success = await ProofChannelService.send_or_update_proof(
+        bot=bot,
+        order_id=order_id,
+        new_proof_status=target_proof_status,
+        force=True,
+    )
+
+    if success:
+        await call.answer("✅ Isbot posti kanalga yuborildi / yangilandi!", show_alert=True)
+    else:
+        await call.answer("⚠️ Kanalga yuborib bo'lmadi. PROOF_CHANNEL_ID va bot huquqlarini tekshiring.", show_alert=True)
+
+    updated_order = await db.get_order(order_id)
+    await call.message.edit_text(format_order_summary(updated_order), reply_markup=admin_order_detail_keyboard(updated_order))
 
 
 # ==============================================================================
@@ -441,6 +479,7 @@ async def admin_statistics(call: CallbackQuery):
     if not is_admin(call.from_user.id):
         return
     stats = await db.get_order_stats()
+    proof_stats = await db.get_proof_stats()
     users_count = await db.get_all_users_count()
     text = (
         f"{DIVIDER}\n"
@@ -454,6 +493,11 @@ async def admin_statistics(call: CallbackQuery):
         f"• Bajarilgan: <b>{stats['completed_orders']} ta</b>\n"
         f"• Bekor qilingan: <b>{stats['cancelled_orders']} ta</b>\n"
         f"• Jami tushum: <b>{format_currency(stats['total_revenue'])}</b>\n"
+        f"{SUB_DIVIDER}\n"
+        f"📢 <b>Isbot kanali statistikasi:</b>\n"
+        f"• Jami bajarilgan: <b>{proof_stats['total_completed']} ta</b>\n"
+        f"• Isbot yuborilgan: <b>{proof_stats['proof_sent']} ta</b>\n"
+        f"• Isbot kutilmoqda: <b>{proof_stats['proof_not_sent']} ta</b>\n"
         f"{SUB_DIVIDER}\n"
         f"👥 <b>Foydalanuvchilar soni:</b> <b>{users_count} nafar</b>\n"
         f"{DIVIDER}"
