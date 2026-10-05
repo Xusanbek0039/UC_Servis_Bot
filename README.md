@@ -192,8 +192,9 @@ Admin botda `/admin` buyrug'ini yuboradi.
 
 ## 🔒 XAVFSIZLIK VA IDEMPOTENCY
 
-- **Takroriy to'lov himoyasi:** TezCheck webhooki bir xil tranzaksiya bilan bir necha marta kelsa ham, baza tekshirilib, order faqat bir marta `PAID` qilinadi.
-- **HMAC-SHA256 Imzo:** Webhook so'rovlarining haqiqiyligi `X-Signature` sarlavhasi orqali tekshiriladi.
+- **To'lovni tasdiqlash:** Bot TezCheck hisobining holatini o'zi so'raydi; faqat aynan kutilgan summa bilan jonli, muvaffaqiyatli to'lov tasdiqlanadi.
+- **Takroriy to'lov himoyasi:** Bitta hisob qayta-qayta tekshirilsa ham balansga faqat bir marta qo'shiladi.
+- **HMAC-SHA256 Imzo:** TezCheck API so'rovlari imzolanadi.
 - **Player ID Validatsiya:** Foydalanuvchi xato yoki harf kiritganda ogohlantiriladi va noto'g'ri hisobga UC ketishi oldi olinadi.
 
 ---
