@@ -207,3 +207,47 @@ Admin botda `/admin` buyrug'ini yuboradi.
 - **Takroriy to'lov himoyasi:** TezCheck webhooki bir xil tranzaksiya bilan bir necha marta kelsa ham, baza tekshirilib, order faqat bir marta `PAID` qilinadi.
 - **HMAC-SHA256 Imzo:** Webhook so'rovlarining haqiqiyligi `X-Signature` sarlavhasi orqali tekshiriladi.
 - **Player ID Validatsiya:** Foydalanuvchi xato yoki harf kiritganda ogohlantiriladi va noto'g'ri hisobga UC ketishi oldi olinadi.
+
+---
+
+## 📢 ISBOT KANALI (PROOF CHANNEL) TIZIMI
+
+Kanalda har bir buyurtmaning butun hayotiy sikli bitta postda **EDIT (tahrirlash)** orqali ko'rsatiladi:
+
+```
+🛒 BUYURTMA QABUL QILINDI  (Post yuboriladi, message_id saqlanadi)
+         ↓
+⚙️ BUYURTMA JARAYONDA      (Mavjud post tahrirlanadi)
+         ↓
+✨ BUYURTMA BAJARILDI      (Aynan o'sha post yakuniy holatga tahrirlanadi)
+```
+
+> **Eng muhim xususiyat:** Har bir buyurtma uchun kanalga ortiqcha yangi xabarlar yuborilmaydi. **Bitta buyurtma = Bitta proof post.**
+
+### 🛠 Isbot kanalini sozlash bo'yicha qo'llanma:
+
+1. **Telegramda yangi kanal yarating:** (Masalan: `PUBG UC | Isbotlar`).
+2. **Botni kanalga Administrator qilib qo'shing:**
+   - Botga **"Post Messages"** (Xabarlar yuborish) va **"Edit Messages"** (Xabarlarni tahrirlash) huquqlarini bering.
+3. **Kanal ID raqamini oling:**
+   - Masalan, `@userinfobot` yoki `@username_to_id_bot` orqali kanaldan bitta post forward qilib ID oling (Format: `-100xxxxxxxxxx`).
+4. **`.env` fayliga sozlamalarni kiriting:**
+   ```ini
+   # Isbot kanali sozlamalari
+   PROOF_CHANNEL_ID=-1001234567890
+   PROOF_ENABLED=True
+   PROOF_SHOW_PRICE=True
+   PROOF_SHOW_PLAYER_ID=True
+   PROOF_HASHTAGS=True
+   PROOF_AUTO_POST=True
+   ```
+5. **Botni qayta ishga tushiring:**
+   ```powershell
+   python bot.py
+   ```
+
+### 🔒 Maxfiylik va Xavfsizlik:
+- Kanal ommaviy (public) bo'lgani sababli, foydalanuvchining ismi, username, Telegram ID, karta raqami yoki to'lov cheki skrinshoti kanalga **aslo chiqarilmaydi**.
+- PUBG Player ID xavfsiz maskalanadi (Masalan: `5123456789` -> `5123****6789`).
+- Vaqt mintaqasi avtomatik tarzda Toshkent vaqti (`Asia/Tashkent`) bo'yicha ko'rsatiladi.
+- Admin panelida har bir buyurtma uchun `[ 📢 Isbotga yuborish ]` yoki `[ 🔄 Isbot postini yangilash ]` tugmalari mavjud.
