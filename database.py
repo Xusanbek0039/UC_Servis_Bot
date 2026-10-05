@@ -6,20 +6,29 @@ from pymongo import ReturnDocument, ASCENDING, DESCENDING
 
 from config import MONGODB_URI, MONGODB_DB_NAME, DELIVERY_MODE
 
+import asyncio
+
 logger = logging.getLogger("database")
 
-# Global Mongo Client & Database instance
+# Global Mongo Client, Database & Event Loop reference
 _client: Optional[AsyncIOMotorClient] = None
 _db = None
+_loop = None
 
 
 def get_db():
-    global _client, _db
-    if _db is None:
+    global _client, _db, _loop
+    try:
+        current_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        current_loop = None
+
+    if _db is None or _loop != current_loop:
         if not MONGODB_URI:
             raise ValueError("MONGODB_URI aniqlanmadi! .env fayliga MONGODB_URI kiriting.")
         _client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=10000)
         _db = _client[MONGODB_DB_NAME]
+        _loop = current_loop
     return _db
 
 
