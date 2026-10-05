@@ -79,32 +79,37 @@ def register_routers(dp: Dispatcher):
 
 async def main():
     """Main Telegram bot runner function."""
+    from asgiref.sync import sync_to_async
     logging.basicConfig(
         level=logging.INFO,
         format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
     )
     logger.info("Starting PUBG UC Top-Up Telegram Bot...")
 
-    # Seed default UC products if empty
-    ProductService.seed_default_products()
+    # Seed default UC products if empty (wrapped in sync_to_async)
+    await sync_to_async(ProductService.seed_default_products)()
 
     register_middlewares(dp)
     register_routers(dp)
 
-    # Delete webhook if previously set to ensure clean polling
+    # Connect and start polling
     try:
         await bot.delete_webhook(drop_pending_updates=True)
         bot_info = await bot.get_me()
         logger.info(f"Bot connected successfully as @{bot_info.username} (ID: {bot_info.id})")
+        logger.info("Bot is ready and listening for events (Polling mode)...")
+        await dp.start_polling(bot)
     except Exception as e:
-        logger.warning(f"Could not connect to Telegram API (check BOT_TOKEN): {e}")
-
-    logger.info("Bot is ready and listening for events...")
-    await dp.start_polling(bot)
+        logger.error(
+            f"Telegram API ga ulanishda xatolik: {e}\n"
+            f"Iltimos, '.env' faylidagi BOT_TOKEN to'g'ri kiritilganligini tekshiring!"
+        )
 
 
 if __name__ == "__main__":
     try:
+        # Pre-seed synchronously before starting event loop
+        ProductService.seed_default_products()
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("Bot stopped.")

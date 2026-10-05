@@ -12,12 +12,14 @@ router = Router()
 async def list_admin_orders(call: CallbackQuery):
     """List orders for admin."""
     only_manual = call.data == "admin_manual_orders"
-    qs = Order.objects.select_related("product", "user").order_by("-created_at")
 
-    if only_manual:
-        qs = qs.filter(status__in=[Order.Status.MANUAL_REVIEW, Order.Status.PROCESSING])
+    def get_orders():
+        qs = Order.objects.select_related("product", "user").order_by("-created_at")
+        if only_manual:
+            qs = qs.filter(status__in=[Order.Status.MANUAL_REVIEW, Order.Status.PROCESSING])
+        return list(qs[:10])
 
-    orders = await sync_to_async(list)(qs[:10])
+    orders = await sync_to_async(get_orders)()
 
     title = "🔴 <b>Kutilayotgan Manual Buyurtmalar:</b>\n\n" if only_manual else "📦 <b>Oxirgi Buyurtmalar:</b>\n\n"
 
@@ -46,9 +48,11 @@ async def list_admin_orders(call: CallbackQuery):
 async def view_admin_order(call: CallbackQuery):
     """View detailed information of an order for admin with action buttons."""
     order_id = call.data.split(":")[1]
-    order = await sync_to_async(
-        Order.objects.select_related("user", "product").filter(order_id=order_id).first
-    )()
+
+    def get_order():
+        return Order.objects.select_related("user", "product").filter(order_id=order_id).first()
+
+    order = await sync_to_async(get_order)()
 
     if not order:
         await call.answer("Buyurtma topilmadi!", show_alert=True)

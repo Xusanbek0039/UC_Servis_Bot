@@ -11,11 +11,14 @@ router = Router()
 @router.callback_query(F.data == "admin_pending_payments")
 async def list_pending_manual_payments(call: CallbackQuery):
     """List pending checks/screenshots awaiting review."""
-    pending_checks = await sync_to_async(list)(
-        ManualPayment.objects.filter(status=ManualPayment.ManualStatus.PENDING)
-        .select_related("payment", "payment__order", "payment__user")
-        .order_by("-created_at")[:10]
-    )
+    def get_pending():
+        return list(
+            ManualPayment.objects.filter(status=ManualPayment.ManualStatus.PENDING)
+            .select_related("payment", "payment__order", "payment__user")
+            .order_by("-created_at")[:10]
+        )
+
+    pending_checks = await sync_to_async(get_pending)()
 
     if not pending_checks:
         text = "💳 <b>Kutilayotgan to'lov cheklari mavjud emas!</b>"
@@ -48,11 +51,15 @@ async def list_pending_manual_payments(call: CallbackQuery):
 async def view_check_detail(call: CallbackQuery):
     """View receipt check details with approve/reject buttons."""
     check_id = int(call.data.split(":")[1])
-    chk = await sync_to_async(
-        ManualPayment.objects.filter(id=check_id)
-        .select_related("payment", "payment__order", "payment__user", "payment__order__product")
-        .first
-    )()
+
+    def get_check():
+        return (
+            ManualPayment.objects.filter(id=check_id)
+            .select_related("payment", "payment__order", "payment__user", "payment__order__product")
+            .first()
+        )
+
+    chk = await sync_to_async(get_check)()
 
     if not chk:
         await call.answer("Chek topilmadi!", show_alert=True)

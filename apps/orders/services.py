@@ -136,8 +136,8 @@ class OrderService:
                 f"💳 To'lov turi: {locked_order.payment_method}\n\n"
                 f"<i>Iltimos, PUBG akkauntiga UC yuboring va quyidagi tugma orqali tasdiqlang.</i>"
             )
-            transaction.on_commit(lambda: NotificationService.notify_admins(admin_msg))
-            transaction.on_commit(lambda: NotificationService.notify_order_status_change(locked_order))
+            transaction.on_commit(lambda: NotificationService.dispatch_admin_alert(admin_msg))
+            transaction.on_commit(lambda: NotificationService.dispatch_order_status_change(locked_order))
         else:
             # AUTO delivery route: trigger celery or sync deliver
             locked_order.status = Order.Status.PROCESSING
@@ -209,7 +209,7 @@ class OrderService:
                 # Trigger referral reward if applicable
                 ReferralService.process_referral_reward_for_order(order)
                 # Send celebratory receipt
-                transaction.on_commit(lambda: NotificationService.notify_order_status_change(order))
+                transaction.on_commit(lambda: NotificationService.dispatch_order_status_change(order))
                 return True
             else:
                 order.retry_count += 1
@@ -224,12 +224,12 @@ class OrderService:
                         f"Xatolik: {order.error_message}\n"
                         f"Status: MANUAL_REVIEW ga o'tkazildi."
                     )
-                    transaction.on_commit(lambda: NotificationService.notify_admins(fail_msg))
+                    transaction.on_commit(lambda: NotificationService.dispatch_admin_alert(fail_msg))
                 else:
                     order.status = Order.Status.PROCESSING
                     order.save(update_fields=["status", "retry_count", "error_message", "updated_at"])
 
-                transaction.on_commit(lambda: NotificationService.notify_order_status_change(order))
+                transaction.on_commit(lambda: NotificationService.dispatch_order_status_change(order))
                 return False
 
     @classmethod
@@ -256,7 +256,7 @@ class OrderService:
         )
 
         ReferralService.process_referral_reward_for_order(order)
-        transaction.on_commit(lambda: NotificationService.notify_order_status_change(order))
+        transaction.on_commit(lambda: NotificationService.dispatch_order_status_change(order))
         return True, "Buyurtma muvaffaqiyatli yakunlandi va foydalanuvchiga xabar yuborildi!"
 
     @classmethod
@@ -295,5 +295,5 @@ class OrderService:
                 details=f"Buyurtma bekor qilindi. Sabab: {reason}. Refund: {refund}",
             )
 
-        transaction.on_commit(lambda: NotificationService.notify_order_status_change(order))
+        transaction.on_commit(lambda: NotificationService.dispatch_order_status_change(order))
         return True, "Buyurtma bekor qilindi."

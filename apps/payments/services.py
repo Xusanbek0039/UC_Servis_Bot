@@ -196,7 +196,7 @@ class PaymentService:
             f"💎 Paket: {order.product.name}\n\n"
             f"<i>Chekni tekshiring va tasdiqlang yoki rad eting.</i>"
         )
-        transaction.on_commit(lambda: NotificationService.notify_admins(admin_alert))
+        transaction.on_commit(lambda: NotificationService.dispatch_admin_alert(admin_alert))
         return manual_entry
 
     @classmethod
@@ -277,6 +277,6 @@ class PaymentService:
             payment.order.status = Order.Status.FAILED
             payment.order.error_message = f"To'lov rad etildi: {reason or 'Chek tasdiqlanmadi'}"
             payment.order.save(update_fields=["status", "error_message", "updated_at"])
-            transaction.on_commit(lambda: NotificationService.notify_order_status_change(payment.order))
+            transaction.on_commit(lambda: NotificationService.dispatch_order_status_change(payment.order))
 
         return True, "To'lov rad etildi."
