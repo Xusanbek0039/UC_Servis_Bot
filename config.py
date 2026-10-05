@@ -36,6 +36,7 @@ MIDASBUY_SECRET = os.getenv("MIDASBUY_SECRET", "").strip()
 
 # Proof Channel Configuration
 PROOF_CHANNEL_ID = os.getenv("PROOF_CHANNEL_ID", "").strip()
+PROOF_CHANNEL_URL = os.getenv("PROOF_CHANNEL_URL", "").strip()
 PROOF_ENABLED = os.getenv("PROOF_ENABLED", "True").strip().lower() in ("true", "1", "yes")
 PROOF_SHOW_PRICE = os.getenv("PROOF_SHOW_PRICE", "True").strip().lower() in ("true", "1", "yes")
 PROOF_SHOW_PLAYER_ID = os.getenv("PROOF_SHOW_PLAYER_ID", "True").strip().lower() in ("true", "1", "yes")

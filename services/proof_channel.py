@@ -21,7 +21,7 @@ from emojis import E
 logger = logging.getLogger("services.proof")
 
 TASHKENT_TZ = ZoneInfo("Asia/Tashkent")
-PROOF_DIVIDER = "━━━━━━━━━━━━━━━━━━━━"
+PROOF_DIVIDER = "━━━━━━━━━━━━━━━━━━"
 
 # Progression stage rankings to prevent backwards status transitions
 PROOF_STAGES = {
@@ -98,24 +98,21 @@ class ProofChannelService:
         created_time_str = get_tashkent_time_str(created_at if isinstance(created_at, datetime) else None)
         updated_time_str = get_tashkent_time_str()
 
-        # Header Card Banner
+        # A compact card header reads cleanly on mobile and allows custom emoji.
         if proof_status == "COMPLETED":
             header = (
-                "╭━━━━━━━━━━━━━━━━━━━━╮\n"
-                f"      {E('success')} <b>BUYURTMA BAJARILDI</b>\n"
-                "╰━━━━━━━━━━━━━━━━━━━━╯"
+                f"{E('success')} <b>BUYURTMA MUVAFFAQIYATLI BAJARILDI</b>\n"
+                f"{PROOF_DIVIDER}"
             )
         elif proof_status == "PROCESSING":
             header = (
-                "╭━━━━━━━━━━━━━━━━━━━━╮\n"
-                f"     {E('processing')} <b>BUYURTMA JARAYONDA</b>\n"
-                "╰━━━━━━━━━━━━━━━━━━━━╯"
+                f"{E('processing')} <b>BUYURTMA YETKAZILMOQDA</b>\n"
+                f"{PROOF_DIVIDER}"
             )
         else:  # RECEIVED
             header = (
-                "╭━━━━━━━━━━━━━━━━━━━━╮\n"
-                f"    {E('cart')} <b>BUYURTMA QABUL QILINDI</b>\n"
-                "╰━━━━━━━━━━━━━━━━━━━━╯"
+                f"{E('cart')} <b>BUYURTMA QABUL QILINDI</b>\n"
+                f"{PROOF_DIVIDER}"
             )
 
         # Body items
@@ -169,8 +166,8 @@ class ProofChannelService:
                 f"<code>{created_time_str}</code>",
             ])
 
-        lines.append(f"\n{PROOF_DIVIDER}\n")
-        lines.append(f"{E('uc')} <b>UC xarid qilish:</b> {bot_handle}")
+        lines.append(f"\n{PROOF_DIVIDER}")
+        lines.append(f"{E('uc')} <b>UC xarid:</b> {bot_handle}")
 
         if PROOF_HASHTAGS:
             if proof_status == "COMPLETED":

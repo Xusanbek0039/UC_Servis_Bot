@@ -3,6 +3,7 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
+from aiogram.html import quote
 from config import ADMIN_IDS
 import database as db
 from keyboards.admin import (
@@ -317,7 +318,7 @@ async def admin_view_single_product(call: CallbackQuery):
         f"{DIVIDER}\n"
         f"   {E('uc')} <b>PAKET: {product['name']}</b>\n"
         f"{DIVIDER}\n\n"
-        f"💎 <b>UC miqdori:</b> <b>{product['uc_amount']} UC</b>\n"
+        f"{E('uc')} <b>UC miqdori:</b> <b>{product['uc_amount']} UC</b>\n"
         f"💰 <b>Sotuv narxi:</b> <b>{format_currency(product['price'])}</b>\n"
         f"📦 <b>Tannarxi:</b> {format_currency(product.get('cost_price', 0))}\n"
         f"📊 <b>Holati:</b> <b>{status_str}</b>\n"
@@ -466,9 +467,51 @@ async def admin_users_menu(call: CallbackQuery):
     )
     for u in recent:
         uname = f"@{u['username']}" if u.get("username") else (u.get("first_name") or "User")
-        text += f"• {uname} (ID: <code>{u.get('telegram_id')}</code>) | Balans: {format_currency(u.get('balance', 0))}\n"
+        total_uc = u.get("total_uc", 0)
+        uc_part = f" | {E('uc')} <b>{total_uc:,} UC</b>" if total_uc > 0 else " | 0 UC"
+        text += f"• {uname} (ID: <code>{u.get('telegram_id')}</code>){uc_part} | Balans: {format_currency(u.get('balance', 0))}\n"
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=f"{E('back', True)} Admin panel", callback_data="btn_admin_menu")]])
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🏆 Eng ko'p UC olganlar (Top)", callback_data="adm_top_buyers")],
+            [InlineKeyboardButton(text=f"{E('back', True)} Admin panel", callback_data="btn_admin_menu")],
+        ]
+    )
+    await call.message.edit_text(text, reply_markup=kb)
+    await call.answer()
+
+
+@router.callback_query(F.data == "adm_top_buyers")
+async def admin_top_buyers(call: CallbackQuery):
+    """View top UC buyers leaderboard."""
+    if not is_admin(call.from_user.id):
+        return
+    top_users = await db.get_top_uc_users(limit=15)
+
+    text = (
+        f"{DIVIDER}\n"
+        f"   🏆 <b>ENG KO'P UC XARID QILGANLAR</b>\n"
+        f"{DIVIDER}\n\n"
+    )
+    if not top_users:
+        text += "<i>Hozircha muvaffaqiyatli buyurtmalar mavjud emas.</i>\n"
+    else:
+        medals = ["🥇", "🥈", "🥉"]
+        for idx, u in enumerate(top_users, start=1):
+            badge = medals[idx - 1] if idx <= 3 else f"<b>{idx}.</b>"
+            uname = f"@{u['username']}" if u.get("username") else u.get("first_name", "User")
+            text += (
+                f"{badge} {uname} (ID: <code>{u['telegram_id']}</code>)\n"
+                f"   └── {E('uc')} Jami: <b>{u['total_uc']:,} UC</b> | Balans: {format_currency(u.get('balance', 0))}\n"
+            )
+
+    text += f"\n{DIVIDER}"
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=f"{E('back', True)} Foydalanuvchilar", callback_data="adm_users_menu")],
+            [InlineKeyboardButton(text=f"{E('home', True)} Admin panel", callback_data="btn_admin_menu")],
+        ]
+    )
     await call.message.edit_text(text, reply_markup=kb)
     await call.answer()
 
@@ -521,6 +564,7 @@ async def admin_settings_menu(call: CallbackQuery, state: FSMContext):
     card_owner = await db.get_setting("card_owner", "PUBG OPERATOR")
     bank_name = await db.get_setting("bank_name", "Kapitalbank")
     support_username = await db.get_setting("support_username", "@PubgUcSupport")
+    proof_channel_url = await db.get_setting("proof_channel_url", "Sozlanmagan")
     delivery_mode = await db.get_setting("delivery_mode", "MANUAL")
 
     text = (
@@ -531,6 +575,7 @@ async def admin_settings_menu(call: CallbackQuery, state: FSMContext):
         f"👤 <b>Egasi:</b> <b>{card_owner}</b>\n"
         f"🏦 <b>Bank:</b> {bank_name}\n"
         f"📞 <b>Support:</b> {support_username}\n"
+        f"📢 <b>Isbot kanali:</b> {quote(proof_channel_url)}\n"
         f"🔧 <b>Yetkazish rejimi:</b> <b>{delivery_mode}</b>\n"
         f"{SUB_DIVIDER}\n"
         f"O'zgartirish uchun kerakli tugmani bosing 👇"
@@ -641,3 +686,34 @@ async def save_support(message: Message, state: FSMContext):
     await db.set_setting("support_username", message.text.strip())
     await state.clear()
     await message.answer("✅ Support username saqlandi!", reply_markup=admin_menu_keyboard())
+
+
+@router.callback_query(F.data == "adm_set_proof_channel")
+async def prompt_set_proof_channel(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        return
+    await state.set_state(AdminSettingsStates.WAITING_PROOF_CHANNEL_URL)
+    await call.message.edit_text(
+        f"{DIVIDER}\n📢 <b>Isbot kanalining havolasini yuboring:</b>\n{DIVIDER}\n\n"
+        "Masalan: <code>@kanal_nomi</code> yoki <code>https://t.me/kanal_nomi</code>.\n"
+        "O‘chirish uchun <code>off</code> yuboring.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=f"{E('back', True)} Bekor qilish", callback_data="adm_settings_menu")]]),
+    )
+    await call.answer()
+
+
+@router.message(AdminSettingsStates.WAITING_PROOF_CHANNEL_URL)
+async def save_proof_channel(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    value = (message.text or "").strip()
+    if value.lower() == "off":
+        value = ""
+    elif value.startswith("@"):
+        value = f"https://t.me/{value[1:]}"
+    elif not (value.startswith("https://t.me/") or value.startswith("http://t.me/")):
+        await message.answer("Havola noto‘g‘ri. @kanal_nomi yoki https://t.me/kanal_nomi yuboring:")
+        return
+    await db.set_setting("proof_channel_url", value)
+    await state.clear()
+    await message.answer("✅ Isbot kanali havolasi saqlandi!", reply_markup=admin_menu_keyboard())

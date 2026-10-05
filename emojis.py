@@ -13,6 +13,7 @@ from typing import Dict, Any
 EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     "uc": {
         "env_var": "EMOJI_UC",
+        "default_id": "5411225014148014586",
         "fallback": "💎",
     },
     "game": {
@@ -157,7 +158,7 @@ def get_emoji(key: str, for_button: bool = False) -> str:
     if for_button:
         return fallback
 
-    custom_id = os.getenv(conf["env_var"], "").strip()
+    custom_id = os.getenv(conf["env_var"], conf.get("default_id", "")).strip()
     if custom_id and custom_id.isdigit():
         return f'<tg-emoji emoji-id="{custom_id}">{fallback}</tg-emoji>'
 

@@ -95,7 +95,7 @@ async def user_help(call: CallbackQuery):
         f"1️⃣ <b>{E('uc', True)} UC sotib olish</b> tugmasini bosing.\n"
         f"2️⃣ PUBG Mobile Player ID raqamingizni yuboring.\n"
         f"3️⃣ O'zingizga kerakli UC paketini tanlang.\n"
-        f"4️⃣ To'lov usulini tanlang (<b>TezCheck</b> yoki <b>Karta</b> orqali).\n"
+        f"4️⃣ To'lov usulini tanlang (<b>Onlayn to'lov</b> yoki <b>Karta</b> orqali).\n"
         f"5️⃣ To'lov muvaffaqiyatli yakunlangach, UC o'yindagi akkauntingizga yetkaziladi!\n\n"
         f"{SUB_DIVIDER}\n"
         f"{E('clock')} <b>Yetkazish vaqti:</b> 1-5 daqiqa\n"

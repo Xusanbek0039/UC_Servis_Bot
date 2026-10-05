@@ -97,7 +97,7 @@ def products_keyboard(products: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
 def payment_methods_keyboard(user_balance: float, order_price: float) -> InlineKeyboardMarkup:
     """Payment methods selection with badges."""
     buttons = [
-        [InlineKeyboardButton(text=f"{E('lightning', True)} TezCheck (Avtomatik to'lov)", callback_data="pay_method:TEZCHECK")],
+        [InlineKeyboardButton(text=f"{E('lightning', True)} Onlayn to'lov (Avtomatik)", callback_data="pay_method:TEZCHECK")],
         [InlineKeyboardButton(text=f"{E('card', True)} Karta orqali (Qo'lda to'lov)", callback_data="pay_method:MANUAL_CARD")],
     ]
 

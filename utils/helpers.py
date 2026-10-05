@@ -54,17 +54,31 @@ def format_order_summary(order: Dict[str, Any]) -> str:
     else:
         proof_line = "📢 <b>Isbot posti:</b> ⚠️ Yuborilmagan"
 
+    pay_method_raw = order.get("payment_method", "Noma'lum")
+    if pay_method_raw == "TEZCHECK":
+        pay_method_str = "Onlayn to'lov (Avtomatik)"
+    elif pay_method_raw == "MANUAL_CARD":
+        pay_method_str = "Karta orqali"
+    elif pay_method_raw == "BALANCE":
+        pay_method_str = "Ichki balansdan"
+    else:
+        pay_method_str = pay_method_raw
+
+    user_total_uc = order.get("user_total_uc")
+    uc_history_line = f"{E('uc')} <b>Jami xarid qilgan:</b> <b>{user_total_uc:,} UC</b>\n" if user_total_uc is not None else ""
+
     return (
         f"{DIVIDER}\n"
         f"{E('order')} <b>BUYURTMA: #{order_id}</b>\n"
         f"{DIVIDER}\n\n"
         f"{E('game')} <b>O'yin:</b> PUBG Mobile\n"
         f"{E('profile')} <b>Mijoz:</b> {username_str}\n"
-        f"🆔 <b>Telegram ID:</b> <code>{order.get('user_id')}</code>\n\n"
+        f"🆔 <b>Telegram ID:</b> <code>{order.get('user_id')}</code>\n"
+        f"{uc_history_line}\n"
         f"🕹 <b>Player ID:</b> <code>{order.get('player_id')}</code>\n"
         f"{E('uc')} <b>Paket:</b> <b>{product_name}</b>\n"
         f"{E('balance')} <b>Summa:</b> <b>{price_str}</b>\n"
-        f"{E('payment')} <b>To'lov usuli:</b> <code>{order.get('payment_method', 'Noma\'lum')}</code>\n"
+        f"{E('payment')} <b>To'lov usuli:</b> <b>{pay_method_str}</b>\n"
         f"{E('stats')} <b>Holat:</b> <b>{status_badge}</b>\n"
         f"{proof_line}\n"
         f"{E('clock')} <b>Sana:</b> <code>{date_str}</code>\n"

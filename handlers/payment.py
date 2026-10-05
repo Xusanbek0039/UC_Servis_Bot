@@ -69,7 +69,7 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
 
     # 2. TezCheck Payment
     if method == "TEZCHECK":
-        wait_msg = await call.message.edit_text(f"{E('clock')} <i>TezCheck to'lov havolasi yaratilmoqda...</i>")
+        wait_msg = await call.message.edit_text(f"{E('clock')} <i>Onlayn to'lov havolasi yaratilmoqda...</i>")
         success, pay_url, err = await TezCheckService.create_payment_bill(
             order_id=order_id,
             amount=price,
@@ -92,13 +92,13 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
 
         text = (
             f"{DIVIDER}\n"
-            f"   {E('lightning')} <b>TEZCHECK ORQALI TO'LOV</b>\n"
+            f"   {E('lightning')} <b>ONLAYN TO'LOV (AVTOMATIK)</b>\n"
             f"{DIVIDER}\n\n"
             f"📦 <b>Buyurtma:</b> <code>{order_id}</code>\n"
             f"{E('uc')} <b>Paket:</b> <b>{order['product_name']}</b>\n"
             f"{E('balance')} <b>To'lov summasi:</b> <b>{format_currency(price)}</b>\n"
             f"{SUB_DIVIDER}\n"
-            f"{E('verified')} <i>To'lov xavfsiz TezCheck shlyuzi orqali qabul qilinadi. To'lov qilingach, bot avtomatik tasdiqlaydi.</i>\n\n"
+            f"{E('verified')} <i>To'lov xavfsiz onlayn to'lov tizimi orqali qabul qilinadi. To'lov qilingach, bot avtomatik tasdiqlaydi.</i>\n\n"
             f"To'lovni davom ettirish uchun quyidagi tugmani bosing 👇"
         )
         await wait_msg.edit_text(text, reply_markup=tezcheck_pay_keyboard(pay_url, order_id))
@@ -167,8 +167,9 @@ async def process_screenshot(message: Message, state: FSMContext, bot: Bot):
         f"📦 <b>Order:</b> <code>{order_id}</code>\n"
         f"👤 <b>Foydalanuvchi:</b> @{order.get('username')} (ID: <code>{order['user_id']}</code>)\n"
         f"🆔 <b>Player ID:</b> <code>{order['player_id']}</code>\n"
-        f"💎 <b>Paket:</b> {order['product_name']}\n"
-        f"💰 <b>Narx:</b> {format_currency(order['price'])}\n\n"
+        f"{E('uc')} <b>Paket:</b> {order['product_name']}\n"
+        f"💰 <b>Narx:</b> {format_currency(order['price'])}\n"
+        f"{E('uc')} <b>Mijozning jami xaridi:</b> <b>{order.get('user_total_uc', 0):,} UC</b>\n\n"
         f"To'lovni tasdiqlaysizmi?"
     )
 

@@ -115,7 +115,8 @@ class OrderService:
                 f"{E('profile')} <b>Mijoz:</b> {order.get('username') or order.get('first_name')} (ID: <code>{order['user_id']}</code>)\n"
                 f"🆔 <b>Player ID:</b> <code>{order['player_id']}</code>\n"
                 f"{E('uc')} <b>Paket:</b> {order['product_name']}\n"
-                f"{E('balance')} <b>Summa:</b> {format_currency(order['price'])}\n\n"
+                f"{E('balance')} <b>Summa:</b> {format_currency(order['price'])}\n"
+                f"{E('uc')} <b>Mijozning jami xaridi:</b> <b>{order.get('user_total_uc', 0):,} UC</b>\n\n"
                 f"<i>PUBG hisobiga UC yuboring va botdan 'UC yuborildi' tugmasini bosing.</i>"
             )
             await cls.notify_admins(bot, admin_alert)

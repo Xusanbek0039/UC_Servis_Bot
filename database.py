@@ -107,7 +107,9 @@ async def get_or_create_user(telegram_id: int, username: Optional[str] = "", fir
         )
         user["username"] = username or ""
         user["first_name"] = first_name or ""
-        return clean_doc(user)
+        doc = clean_doc(user)
+        doc["is_new"] = False
+        return doc
 
     # Insert new user
     new_user = {
@@ -119,7 +121,9 @@ async def get_or_create_user(telegram_id: int, username: Optional[str] = "", fir
         "created_at": datetime.now(),
     }
     await db.users.insert_one(new_user)
-    return clean_doc(new_user)
+    doc = clean_doc(new_user)
+    doc["is_new"] = True
+    return doc
 
 
 async def get_user(telegram_id: int) -> Optional[Dict[str, Any]]:
@@ -149,12 +153,66 @@ async def get_all_users_count() -> int:
     return await db.users.count_documents({})
 
 
+async def get_user_total_uc(telegram_id: int) -> int:
+    """Returns total UC bought by this user across COMPLETED orders."""
+    db = get_db()
+    cursor = db.orders.find({"user_id": telegram_id, "status": "COMPLETED"})
+    total_uc = 0
+    products_cache = {}
+    async for order in cursor:
+        if "uc_amount" in order and order["uc_amount"]:
+            total_uc += int(order["uc_amount"])
+        else:
+            pid = int(order.get("product_id", 0))
+            if pid not in products_cache:
+                p = await db.products.find_one({"id": pid})
+                products_cache[pid] = p.get("uc_amount", 0) if p else 0
+            total_uc += products_cache[pid]
+    return total_uc
+
+
+async def get_top_uc_users(limit: int = 15) -> List[Dict[str, Any]]:
+    """Returns top buyers ordered by total purchased UC."""
+    db = get_db()
+    cursor = db.orders.find({"status": "COMPLETED"})
+    user_totals = {}
+    products_cache = {}
+    async for order in cursor:
+        uid = order.get("user_id")
+        if not uid:
+            continue
+        if "uc_amount" in order and order["uc_amount"]:
+            uc = int(order["uc_amount"])
+        else:
+            pid = int(order.get("product_id", 0))
+            if pid not in products_cache:
+                p = await db.products.find_one({"id": pid})
+                products_cache[pid] = p.get("uc_amount", 0) if p else 0
+            uc = products_cache[pid]
+        user_totals[uid] = user_totals.get(uid, 0) + uc
+
+    sorted_users = sorted(user_totals.items(), key=lambda x: x[1], reverse=True)[:limit]
+    result = []
+    for uid, total_uc in sorted_users:
+        user = await db.users.find_one({"telegram_id": uid})
+        result.append({
+            "telegram_id": uid,
+            "username": user.get("username", "") if user else "",
+            "first_name": user.get("first_name", "") if user else "Foydalanuvchi",
+            "total_uc": total_uc,
+            "balance": user.get("balance", 0.0) if user else 0.0,
+        })
+    return result
+
+
 async def get_recent_users(limit: int = 8) -> List[Dict[str, Any]]:
     db = get_db()
     cursor = db.users.find({}).sort("created_at", DESCENDING).limit(limit)
     users = []
     async for doc in cursor:
-        users.append(clean_doc(doc))
+        u = clean_doc(doc)
+        u["total_uc"] = await get_user_total_uc(u["telegram_id"])
+        users.append(u)
     return users
 
 
@@ -257,11 +315,15 @@ async def generate_order_id() -> str:
 async def create_order(telegram_id: int, player_id: str, product_id: int, price: float, payment_method: str) -> str:
     db = get_db()
     order_id = await generate_order_id()
+    prod = await db.products.find_one({"id": int(product_id)})
+    uc_amount = prod.get("uc_amount", 0) if prod else 0
+
     new_order = {
         "order_id": order_id,
         "user_id": telegram_id,
         "player_id": player_id,
         "product_id": int(product_id),
+        "uc_amount": int(uc_amount),
         "price": float(price),
         "status": "WAITING_PAYMENT",
         "payment_method": payment_method,
@@ -290,7 +352,7 @@ async def _enrich_order(order_doc: Optional[Dict[str, Any]]) -> Optional[Dict[st
     # Product info
     prod = await db.products.find_one({"id": int(order.get("product_id", 0))})
     order["product_name"] = prod.get("name", "Noma'lum paket") if prod else "Noma'lum paket"
-    order["uc_amount"] = prod.get("uc_amount", 0) if prod else 0
+    order["uc_amount"] = prod.get("uc_amount", 0) if prod else order.get("uc_amount", 0)
 
     # User info
     user = await db.users.find_one({"telegram_id": order.get("user_id")})
@@ -300,6 +362,9 @@ async def _enrich_order(order_doc: Optional[Dict[str, Any]]) -> Optional[Dict[st
     else:
         order["username"] = ""
         order["first_name"] = ""
+
+    # User's total purchased UC
+    order["user_total_uc"] = await get_user_total_uc(order.get("user_id", 0))
 
     return order
 

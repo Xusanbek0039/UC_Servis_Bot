@@ -111,6 +111,7 @@ def admin_settings_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=f"{E('profile', True)} Karta egasini o'zgartirish", callback_data="adm_set_card_owner")],
             [InlineKeyboardButton(text="🏦 Bank nomini o'zgartirish", callback_data="adm_set_bank_name")],
             [InlineKeyboardButton(text=f"{E('support', True)} Support username sozlash", callback_data="adm_set_support")],
+            [InlineKeyboardButton(text=f"{E('proof', True)} Isbot kanal havolasini sozlash", callback_data="adm_set_proof_channel")],
             [InlineKeyboardButton(text=f"{E('refresh', True)} Yetkazish rejimini almashtirish", callback_data="adm_toggle_delivery")],
             [InlineKeyboardButton(text=f"{E('back', True)} Admin panel", callback_data="btn_admin_menu")],
         ]
