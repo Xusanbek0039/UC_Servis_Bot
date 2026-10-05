@@ -1,7 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from aiogram.html import quote
+from html import escape as quote
 from uuid import uuid4
 import database as db
 from utils.helpers import format_currency, DIVIDER, SUB_DIVIDER

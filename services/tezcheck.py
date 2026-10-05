@@ -56,9 +56,24 @@ class TezCheckService:
 
         try:
             async with httpx.AsyncClient(base_url=TEZCHECK_BASE_URL, timeout=20.0) as client:
-                response = await client.post(path, content=body, headers=headers)
+            response = await client.post(path, content=body, headers=headers)
             if response.status_code >= 400:
                 logger.error("TezCheck bill creation failed (%s): %s", response.status_code, response.text[:1000])
+                if response.status_code == 401:
+                    return (
+                        False,
+                        "",
+                        "",
+                        "TezCheck API kaliti qabul qilinmadi. Render Environment’da TEZCHECK_API_KEY qiymatini "
+                        "TezCheck kabinetidagi faol Merchant API tokeni bilan almashtiring va servisni redeploy qiling.",
+                    )
+                if response.status_code == 403:
+                    return (
+                        False,
+                        "",
+                        "",
+                        "TezCheck so‘rovni rad etdi. Kassa IP ruxsat ro‘yxati va API token ruxsatlarini tekshiring.",
+                    )
                 return False, "", "", f"TezCheck xatosi ({response.status_code}): {response.text[:300]}"
 
             result = response.json().get("data", {})

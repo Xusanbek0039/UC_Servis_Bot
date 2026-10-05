@@ -2,7 +2,7 @@ import logging
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from aiogram.html import quote
+from html import escape as quote
 from states.order import OrderStates
 from keyboards.user import (
     tezcheck_pay_keyboard,
