@@ -48,7 +48,7 @@ class TezCheckService:
                 resp = await client.post(url, json=payload, headers=headers)
                 if resp.status_code >= 400:
                     logger.error(f"TezCheck error: {resp.status_code} - {resp.text}")
-                    return False, "", f"TezCheck xatosi: {resp.status_code}"
+                    return False, "", f"To'lov tizimi xatosi: {resp.status_code}"
                 
                 data = resp.json()
                 pay_url = data.get("pay_url") or data.get("payment_url")
@@ -57,7 +57,7 @@ class TezCheckService:
                 return True, pay_url, ""
         except Exception as e:
             logger.exception("TezCheck connection failed")
-            return False, "", f"TezCheck serveriga ulanishda xatolik: {e}"
+            return False, "", f"To'lov serveriga ulanishda xatolik: {e}"
 
     @staticmethod
     def verify_webhook_signature(payload: Dict[str, Any], signature: str) -> bool:
