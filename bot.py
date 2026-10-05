@@ -15,6 +15,7 @@ from handlers.payment import router as payment_router
 from handlers.orders import router as orders_router
 from handlers.profile import router as profile_router
 from handlers.admin import router as admin_router
+from services.payment_monitor import poll_pending_tezcheck_payments
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,11 +55,18 @@ async def main():
         await bot.delete_webhook(drop_pending_updates=True)
         bot_info = await bot.get_me()
         logger.info(f"Bot connected successfully as @{bot_info.username} (ID: {bot_info.id})")
+        payment_monitor = asyncio.create_task(poll_pending_tezcheck_payments(bot))
         logger.info("Bot is ready and listening for events (Polling mode)...")
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Telegram API ulanishida xatolik: {e}")
     finally:
+        if "payment_monitor" in locals():
+            payment_monitor.cancel()
+            try:
+                await payment_monitor
+            except asyncio.CancelledError:
+                pass
         await bot.session.close()
 
 

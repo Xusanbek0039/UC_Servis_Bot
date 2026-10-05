@@ -99,7 +99,6 @@ async def create_balance_topup(message: Message, state: FSMContext):
         description=f"Balansni to‘ldirish {format_currency(amount)}",
     )
     if not success:
-        logger_message = f"Balans to‘ldirish uchun to‘lov havolasi yaratilmadi: {error}"
         await message.answer(
             f"{DIVIDER}\n⚠️ <b>To‘lov havolasi yaratilmadi</b>\n\n{error}\n{DIVIDER}",
             reply_markup=balance_keyboard(),

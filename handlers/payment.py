@@ -14,6 +14,7 @@ from keyboards.user import (
 from config import ADMIN_IDS
 import database as db
 from services.tezcheck import TezCheckService
+from services.payment_monitor import check_tezcheck_payment
 from services.order_service import OrderService
 from utils.helpers import format_currency, DIVIDER, SUB_DIVIDER, format_order_summary
 from emojis import E
@@ -213,6 +214,10 @@ async def check_payment_manual(call: CallbackQuery, bot: Bot):
         await call.answer("Buyurtma topilmadi!", show_alert=True)
         return
 
+    if order.get("user_id") != call.from_user.id:
+        await call.answer("Bu buyurtma sizga tegishli emas.", show_alert=True)
+        return
+
     if order["status"] in ("PAID", "PROCESSING", "COMPLETED"):
         await call.answer("✅ To'lov tasdiqlangan va UC yetkazilmoqda!", show_alert=True)
         await call.message.edit_text(
@@ -225,7 +230,16 @@ async def check_payment_manual(call: CallbackQuery, bot: Bot):
             reply_markup=order_success_keyboard(),
         )
     else:
-        await call.answer("⏳ To'lov hali qabul qilinmadi. Iltimos, to'lovni amalga oshiring.", show_alert=True)
+        payment = await db.get_payment_by_order(order_id)
+        if payment and payment.get("payment_method") == "TEZCHECK":
+            result = await check_tezcheck_payment(bot, payment, notify_user=False)
+            if result == "paid":
+                await call.answer("✅ To‘lov tasdiqlandi!", show_alert=True)
+                return
+            if result == "error":
+                await call.answer("To‘lov holatini tekshirib bo‘lmadi. Keyinroq urinib ko‘ring.", show_alert=True)
+                return
+        await call.answer("⏳ To'lov hali tasdiqlanmadi. To‘lovdan keyin yana tekshiring.", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("change_method:"))
