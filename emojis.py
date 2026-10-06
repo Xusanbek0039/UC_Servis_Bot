@@ -18,6 +18,7 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     },
     "game": {
         "env_var": "EMOJI_GAME",
+        "default_id": "5341747651777930077",
         "fallback": "🎮",
     },
     "payment": {
@@ -26,14 +27,17 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     },
     "order": {
         "env_var": "EMOJI_ORDER",
+        "default_id": "6323328338123293863",
         "fallback": "📦",
     },
     "profile": {
         "env_var": "EMOJI_PROFILE",
+        "default_id": "5818715087237549366",
         "fallback": "👤",
     },
     "balance": {
         "env_var": "EMOJI_BALANCE",
+        "default_id": "5388996449562285785",
         "fallback": "💰",
     },
     "support": {
@@ -46,10 +50,12 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     },
     "success": {
         "env_var": "EMOJI_SUCCESS",
+        "default_id": "5222068860521290556",
         "fallback": "✨",
     },
     "check": {
         "env_var": "EMOJI_CHECK",
+        "default_id": "5980930633298350051",
         "fallback": "✅",
     },
     "error": {
@@ -118,6 +124,7 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     },
     "bulb": {
         "env_var": "EMOJI_BULB",
+        "default_id": "5472146462362048818",
         "fallback": "💡",
     },
     "proof": {
@@ -134,12 +141,23 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     },
     "id": {
         "env_var": "EMOJI_ID",
+        "default_id": "5841276284155467413",
         "fallback": "🆔",
     },
     "cart": {
         "env_var": "EMOJI_CART",
         "fallback": "🛒",
     },
+    "bank": {"env_var": "EMOJI_BANK", "default_id": "5388974304710906586", "fallback": "🏦"},
+    "tag": {"env_var": "EMOJI_TAG", "default_id": "6323468994007271113", "fallback": "🏷"},
+    "pointer": {"env_var": "EMOJI_POINTER", "default_id": "5265165687650797923", "fallback": "👉"},
+    "visa": {"env_var": "EMOJI_VISA", "default_id": "5247131613896126178", "fallback": "💳"},
+    "humo": {"env_var": "EMOJI_HUMO", "default_id": "5386365640359567570", "fallback": "💳"},
+    "mastercard": {"env_var": "EMOJI_MASTERCARD", "default_id": "5278219081105811309", "fallback": "💳"},
+    "uzcard": {"env_var": "EMOJI_UZCARD", "default_id": "5389085445579626838", "fallback": "💳"},
+    "click": {"env_var": "EMOJI_CLICK", "default_id": "5192986687772303380", "fallback": "💸"},
+    "payme": {"env_var": "EMOJI_PAYME", "default_id": "5190915130556162925", "fallback": "💸"},
+    "paynet": {"env_var": "EMOJI_PAYNET", "default_id": "5474339588627509561", "fallback": "💸"},
 }
 
 
