@@ -137,6 +137,11 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         await call.answer("Tanlangan paket topilmadi!", show_alert=True)
         return
 
+    if product.get("manual_block") or product.get("is_active") != 1 or product.get("auto_block_reason") == "SUPPLIER_UNAVAILABLE":
+        await call.answer("Bu paket hozircha sotuvda mavjud emas.", show_alert=True)
+        await show_products_list(call, state)
+        return
+
     rate = float(await db.get_setting("usd_rate", "0") or 0)
     quote = calculate_price(product.get("supplier_price_usd", 0), rate, product.get("profit_percent", 0), product.get("max_price", 0))
     if quote.blocked_reason:
