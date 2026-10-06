@@ -10,6 +10,7 @@ from config import ADMIN_IDS, LIOGAMES_AUTO_DELIVERY, LIOGAMES_STOP_ON_LOW_BALAN
 from keyboards.user import order_success_keyboard
 from services.liogames import LioGamesService, LioGamesError
 from services.proof_channel import ProofChannelService
+from services.order_reminder import reminder_keyboard, delete_reminder_messages
 from utils.helpers import format_currency, DIVIDER, SUB_DIVIDER
 from emojis import E
 
@@ -65,7 +66,8 @@ class OrderService:
         if mode != "AUTO" or not LIOGAMES_AUTO_DELIVERY:
             await db.set_delivery_status(order_id, "PROCESSING")
             await db.update_order_status(order_id, "PAID")
-            await cls.notify_admins(bot, cls._admin_order_text(order))
+            await cls.notify_admins(bot, cls._admin_order_text(order), reminder_keyboard(order_id))
+            await db.set_admin_reminder_messages(order_id, [], increment=False)
             await cls.notify_user(
                 bot, order["user_id"],
                 f"{DIVIDER}\n✅ <b>TO'LOV QABUL QILINDI</b>\n{DIVIDER}\n\n"
@@ -133,6 +135,7 @@ class OrderService:
         if status in ("COMPLETED", "SUCCESS", "DONE"):
             updated = await db.complete_delivery_once(order_id, supplier_status=status, delivered_at=datetime.now(timezone.utc))
             if updated:
+                await delete_reminder_messages(bot, order_id)
                 order = await db.get_order(order_id)
                 await ProofChannelService.send_or_update_proof(bot, order_id, "COMPLETED")
                 if order:

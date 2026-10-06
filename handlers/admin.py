@@ -17,6 +17,7 @@ from keyboards.admin import (
 from states.order import AdminProductStates, AdminSettingsStates
 from services.order_service import OrderService
 from services.proof_channel import ProofChannelService
+from services.order_reminder import delete_reminder_messages
 from utils.helpers import format_order_summary, format_currency, DIVIDER, SUB_DIVIDER, get_status_badge
 from emojis import E
 from services.pricing import calculate_price, product_sellable
@@ -204,9 +205,17 @@ async def deliver_order_manual(call: CallbackQuery, bot: Bot):
 
     order_id = call.data.split(":")[1]
     completed = await OrderService.mark_manual_delivered(bot, order_id=order_id)
-    await call.answer("✅ UC yuborildi deb tasdiqlandi!" if completed else "Order yakunlashga tayyor emas yoki allaqachon yakunlangan.", show_alert=True)
+    await call.answer("✅ UC yuborildi deb tasdiqlandi! Eslatmalar to'xtatildi." if completed else "Order yakunlashga tayyor emas yoki allaqachon yakunlangan.", show_alert=True)
     order = await db.get_order(order_id)
-    await call.message.edit_text(format_order_summary(order), reply_markup=admin_order_detail_keyboard(order))
+    if order and order.get("delivery_status") == "COMPLETED":
+        await delete_reminder_messages(bot, order_id, keep=(call.message.chat.id, call.message.message_id))
+    try:
+        if call.message.photo or call.message.document:
+            await call.message.edit_caption(caption=format_order_summary(order), reply_markup=admin_order_detail_keyboard(order))
+        else:
+            await call.message.edit_text(format_order_summary(order), reply_markup=admin_order_detail_keyboard(order))
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data.startswith("adm_proof_send:") | F.data.startswith("adm_proof_upd:"))

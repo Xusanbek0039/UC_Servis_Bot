@@ -72,6 +72,8 @@ MAX_PROFIT_PERCENT = max(0, float(os.getenv("MAX_PROFIT_PERCENT", "200")))
 ORDER_PAYMENT_TTL_MINUTES = max(5, int(os.getenv("ORDER_PAYMENT_TTL_MINUTES", "20")))
 BACKUP_RETENTION_DAYS = max(1, int(os.getenv("BACKUP_RETENTION_DAYS", "7")))
 BACKUP_DIR = os.getenv("BACKUP_DIR", "backups").strip()
+# Admin reminders for paid-but-undelivered orders (seconds, default 3 minutes)
+ADMIN_REMINDER_INTERVAL = max(60, int(os.getenv("ADMIN_REMINDER_INTERVAL", "180")))
 
 # Proof Channel Configuration
 PROOF_CHANNEL_ID = os.getenv("PROOF_CHANNEL_ID", "").strip()

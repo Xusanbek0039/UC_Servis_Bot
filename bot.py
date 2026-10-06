@@ -19,6 +19,7 @@ from services.payment_monitor import poll_pending_tezcheck_payments
 from services.payment_monitor import poll_supplier_orders
 from services.price_monitor import monitor_supplier, update_usd_rate, refresh_product_prices
 from services.backup import backup_loop
+from services.order_reminder import admin_order_reminder_loop
 
 logging.basicConfig(
     level=logging.INFO,
@@ -66,6 +67,7 @@ async def main():
             asyncio.create_task(poll_supplier_orders(bot)),
             asyncio.create_task(monitor_supplier(bot)),
             asyncio.create_task(backup_loop(bot)),
+            asyncio.create_task(admin_order_reminder_loop(bot)),
         ]
         logger.info("Bot is ready and listening for events (Polling mode)...")
         await dp.start_polling(bot)

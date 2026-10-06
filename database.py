@@ -580,6 +580,47 @@ async def get_recoverable_supplier_orders(limit: int = 100) -> List[Dict[str, An
     return [clean_doc(doc) async for doc in cursor]
 
 
+async def get_orders_due_for_admin_reminder(interval_seconds: int, limit: int = 50) -> List[Dict[str, Any]]:
+    """Paid orders still waiting for admin action, not reminded within the interval.
+
+    Orders currently being processed by the supplier (auto delivery) are skipped;
+    they get reminders only if they fail (delivery_status == FAILED).
+    """
+    threshold = datetime.now() - timedelta(seconds=interval_seconds)
+    query = {
+        "payment_status": "SUCCESS",
+        "status": {"$nin": ["COMPLETED", "CANCELLED", "REFUNDED", "EXPIRED"]},
+        "$and": [
+            {"$or": [
+                {"delivery_status": "FAILED"},
+                {"delivery_status": "PROCESSING", "supplier_submitted": {"$ne": True}},
+            ]},
+            {"$or": [
+                {"admin_reminded_at": {"$exists": False}},
+                {"admin_reminded_at": {"$lte": threshold}},
+            ]},
+        ],
+    }
+    cursor = get_db().orders.find(query).sort("created_at", ASCENDING).limit(limit)
+    return [clean_doc(doc) async for doc in cursor]
+
+
+async def set_admin_reminder_messages(order_id: str, messages: List[Dict[str, int]], increment: bool = True) -> None:
+    update: Dict[str, Any] = {"$set": {"admin_reminded_at": datetime.now(), "admin_reminder_messages": messages}}
+    if increment:
+        update["$inc"] = {"admin_reminder_count": 1}
+    await get_db().orders.update_one({"order_id": order_id}, update)
+
+
+async def pop_admin_reminder_messages(order_id: str) -> List[Dict[str, int]]:
+    doc = await get_db().orders.find_one_and_update(
+        {"order_id": order_id},
+        {"$set": {"admin_reminder_messages": []}},
+        projection={"admin_reminder_messages": 1},
+    )
+    return list((doc or {}).get("admin_reminder_messages") or [])
+
+
 async def expire_unpaid_orders() -> int:
     now = datetime.now()
     result = await get_db().orders.update_many(
