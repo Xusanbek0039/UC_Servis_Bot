@@ -13,7 +13,7 @@ from typing import Dict, Any
 EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     "uc": {
         "env_var": "EMOJI_UC",
-        "default_id": "5411225014148014586",
+        "default_id": "5386358072627184204",
         "fallback": "💎",
     },
     "game": {

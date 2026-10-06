@@ -6,6 +6,7 @@ from config import ADMIN_IDS, PROOF_CHANNEL_URL
 import database as db
 from keyboards.user import main_menu_keyboard
 from utils.helpers import DIVIDER
+from utils.helpers import format_currency
 from emojis import E
 
 router = Router()
@@ -25,6 +26,20 @@ def get_welcome_text(first_name: str) -> str:
         f"{E('proof')} Isbotlarimizni kanalimizda kuzatib boring.\n\n"
         f"Kerakli bo'limni tanlang 👇"
     )
+
+
+async def get_welcome_text_with_catalog(first_name: str) -> str:
+    """Add the currently available UC package prices to the /start greeting."""
+    products = await db.get_active_products()
+    if not products:
+        return get_welcome_text(first_name)
+
+    catalog = "\n".join(
+        f"{E('uc')} <b>{product.get('name', str(product.get('uc_amount', '')) + ' UC')}</b> — "
+        f"{format_currency(product.get('price', 0))}"
+        for product in products
+    )
+    return f"{get_welcome_text(first_name)}\n\n{DIVIDER}\n{E('uc')} <b>UC NARXLARI</b>\n{DIVIDER}\n{catalog}"
 
 
 async def welcome_keyboard(is_admin: bool) -> InlineKeyboardMarkup:
@@ -69,7 +84,7 @@ async def start_command(message: Message, state: FSMContext):
                 pass
 
     is_admin = user_id in ADMIN_IDS
-    await message.answer(get_welcome_text(first_name), reply_markup=await welcome_keyboard(is_admin))
+    await message.answer(await get_welcome_text_with_catalog(first_name), reply_markup=await welcome_keyboard(is_admin))
 
 
 @router.callback_query(F.data.in_({"btn_cancel", "btn_home", "adm_exit"}))
@@ -80,9 +95,11 @@ async def return_to_main_menu(call: CallbackQuery, state: FSMContext):
     first_name = call.from_user.first_name or "Foydalanuvchi"
 
     try:
-        await call.message.edit_text(get_welcome_text(first_name), reply_markup=await welcome_keyboard(is_admin))
+        welcome_text = await get_welcome_text_with_catalog(first_name)
+        await call.message.edit_text(welcome_text, reply_markup=await welcome_keyboard(is_admin))
     except Exception:
         await call.message.delete()
-        await call.message.answer(get_welcome_text(first_name), reply_markup=await welcome_keyboard(is_admin))
+        welcome_text = await get_welcome_text_with_catalog(first_name)
+        await call.message.answer(welcome_text, reply_markup=await welcome_keyboard(is_admin))
 
     await call.answer()
