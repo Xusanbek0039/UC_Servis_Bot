@@ -60,6 +60,8 @@ class OrderService:
             return True
 
         mode = (await db.get_setting("delivery_mode", "MANUAL")).upper()
+        if order.get("pricing_mode", "MANUAL").upper() == "MANUAL":
+            mode = "MANUAL"
         if mode != "AUTO" or not LIOGAMES_AUTO_DELIVERY:
             await db.set_delivery_status(order_id, "PROCESSING")
             await db.update_order_status(order_id, "PAID")

@@ -294,15 +294,19 @@ async def admin_products_list(call: CallbackQuery, state: FSMContext):
         return
     await state.clear()
     products = await db.get_all_products()
+    pricing_mode = await db.get_pricing_mode()
     rows = []
     for product in products:
         manual = bool(product.get("manual_block"))
         reason = product.get("auto_block_reason") or ""
-        status = "🔴 MANUAL BLOCK" if manual else (f"🔴 {reason}" if reason else ("🟢 ACTIVE" if product_sellable(product) else "🔴 BLOCKED/SETUP"))
-        rows.append(
-            f"📦 <b>{html.escape(product.get('name', 'UC'))}</b> · Cost {format_currency(product.get('cost_price', 0))} · "
-            f"+{product.get('profit_percent', 0):g}% · MAX {format_currency(product.get('max_price', 0))} · {status}"
-        )
+        status = "🔴 MANUAL BLOCK" if manual else ("🟢 ACTIVE" if product_sellable(product, pricing_mode) else (f"🔴 {reason}" if reason else "🔴 NARX KIRITILMAGAN"))
+        if pricing_mode == "MANUAL":
+            rows.append(f"📦 <b>{html.escape(product.get('name', 'UC'))}</b> · Tannarx {format_currency(product.get('cost_price', 0))} · Sotuv {format_currency(product.get('price', 0))} · {status}")
+        else:
+            rows.append(
+                f"📦 <b>{html.escape(product.get('name', 'UC'))}</b> · Cost {format_currency(product.get('cost_price', 0))} · "
+                f"+{product.get('profit_percent', 0):g}% · MAX {format_currency(product.get('max_price', 0))} · {status}"
+            )
     product_rows = "\n".join(rows)
     text = (
         f"{DIVIDER}\n"
@@ -310,7 +314,7 @@ async def admin_products_list(call: CallbackQuery, state: FSMContext):
         f"{DIVIDER}\n\n"
         f"{product_rows}\n\nPaketni tahrirlash uchun ustiga bosing yoki yangisini qo'shing 👇"
     )
-    await call.message.edit_text(text, reply_markup=admin_products_management_keyboard(products))
+    await call.message.edit_text(text, reply_markup=admin_products_management_keyboard(products, pricing_mode))
     await call.answer()
 
 
@@ -335,22 +339,33 @@ async def admin_view_single_product(call: CallbackQuery):
 
     manual = bool(product.get("manual_block"))
     auto_reason = product.get("auto_block_reason") or ""
-    status_str = "🔴 MANUAL BLOCK" if manual else (f"🔴 {auto_reason}" if auto_reason else ("🟢 ACTIVE" if product_sellable(product) else "🔴 BLOCKED/SETUP"))
+    pricing_mode = await db.get_pricing_mode()
+    status_str = "🔴 MANUAL BLOCK" if manual else ("🟢 ACTIVE" if product_sellable(product, pricing_mode) else (f"🔴 {auto_reason}" if auto_reason else "🔴 NARX KIRITILMAGAN"))
+    if pricing_mode == "MANUAL":
+        pricing_details = (
+            f"💰 <b>Sotuv narxi:</b> {format_currency(product.get('price', 0))}\n"
+            f"📦 <b>Tannarx (ma'lumot uchun):</b> {format_currency(product.get('cost_price', 0))}\n"
+            "💵 <b>Narxlash:</b> Qo'lda\n"
+        )
+    else:
+        pricing_details = (
+            f"💰 <b>Sotuv narxi:</b> {format_currency(product['price'])}\n"
+            f"📦 <b>Tannarxi:</b> {format_currency(product.get('cost_price', 0))}\n"
+            f"📈 <b>Ustama:</b> {product.get('profit_percent', 0):g}%\n"
+            f"🔴 <b>Max narx:</b> {format_currency(product.get('max_price', 0)) if product.get('max_price', 0) else 'Belgilanmagan'}\n"
+            f"💵 <b>LioGames:</b> ${float(product.get('supplier_price_usd', 0)):.2f} · USD kurs: {await db.get_setting('usd_rate', '—')} UZS\n"
+            f"🛠 <b>Tekshiruv:</b> <code>{html.escape(str(product.get('supplier_error') or 'OK'))}</code>\n"
+        )
     text = (
         f"{DIVIDER}\n"
         f"   {E('uc')} <b>PAKET: {product['name']}</b>\n"
         f"{DIVIDER}\n\n"
         f"{E('uc')} <b>UC miqdori:</b> <b>{product['uc_amount']} UC</b>\n"
-        f"💰 <b>Sotuv narxi:</b> <b>{format_currency(product['price'])}</b>\n"
-        f"📦 <b>Tannarxi:</b> {format_currency(product.get('cost_price', 0))}\n"
-        f"📈 <b>Ustama:</b> {product.get('profit_percent', 0):g}%\n"
-        f"🔴 <b>Max narx:</b> {format_currency(product.get('max_price', 0)) if product.get('max_price', 0) else 'Belgilanmagan'}\n"
-        f"💵 <b>Supplier:</b> ${float(product.get('supplier_price_usd', 0)):.2f} · kurs: {await db.get_setting('usd_rate', '—')} UZS/USD\n"
-        f"🛠 <b>Supplier tekshiruvi:</b> <code>{html.escape(str(product.get('supplier_error') or 'OK'))}</code>\n"
+        f"{pricing_details}"
         f"📊 <b>Holati:</b> <b>{status_str}</b>\n"
         f"{DIVIDER}"
     )
-    await call.message.edit_text(text, reply_markup=admin_single_product_keyboard(prod_id, product.get("is_active", 1)))
+    await call.message.edit_text(text, reply_markup=admin_single_product_keyboard(prod_id, product.get("is_active", 1), pricing_mode))
     await call.answer()
 
 
@@ -498,12 +513,15 @@ async def save_new_price(message: Message, state: FSMContext):
     except ValueError:
         await message.answer("⚠️ Iltimos, narxni faqat raqamlarda kiriting:")
         return
+    if new_price <= 0:
+        await message.answer("⚠️ Narx 0 dan katta bo'lishi kerak:")
+        return
 
     data = await state.get_data()
     prod_id = data.get("editing_product_id")
     await db.update_product_price(prod_id, new_price)
     await state.clear()
-    await message.answer(f"✅ Narx muvaffaqiyatli yangilandi: <b>{format_currency(new_price)}</b>", reply_markup=admin_menu_keyboard())
+    await message.answer(f"✅ Narx saqlandi: <b>{format_currency(new_price)}</b>. Manual narxlashda paket shu narxda ko'rinadi.", reply_markup=admin_menu_keyboard())
 
 
 @router.callback_query(F.data == "adm_add_product")
@@ -711,6 +729,7 @@ async def admin_settings_menu(call: CallbackQuery, state: FSMContext):
         f"{E('paynet')} <b>Paynet:</b> {payment_destinations['PAYNET']}\n"
         f"📞 <b>Support:</b> {support_username}\n"
         f"📢 <b>Isbot kanali:</b> {html.escape(proof_channel_url)}\n"
+        f"💵 <b>Narxlash manbasi:</b> <b>{await db.get_pricing_mode()}</b>\n"
         f"🔧 <b>Yetkazish rejimi:</b> <b>{delivery_mode}</b>\n"
         f"{SUB_DIVIDER}\n"
         f"O'zgartirish uchun kerakli tugmani bosing 👇"
@@ -728,6 +747,22 @@ async def toggle_delivery_mode(call: CallbackQuery, state: FSMContext):
     new_mode = "AUTO" if current == "MANUAL" else "MANUAL"
     await db.set_setting("delivery_mode", new_mode)
     await call.answer(f"Yetkazish rejimi o'zgartirildi: {new_mode}", show_alert=True)
+    await admin_settings_menu(call, state)
+
+
+@router.callback_query(F.data == "adm_toggle_pricing_mode")
+async def toggle_pricing_mode(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        return
+    current = await db.get_pricing_mode()
+    new_mode = "LIOGAMES" if current == "MANUAL" else "MANUAL"
+    await db.set_pricing_mode(new_mode)
+    if new_mode == "LIOGAMES":
+        await refresh_product_prices(call.bot)
+        message = "LioGames narxlashi yoqildi. Paketlar API narxi tasdiqlangach ochiladi."
+    else:
+        message = "Manual narxlash yoqildi. LioGames narx tekshiruvi to'xtatildi; sotuv narxlarini admin belgilaydi."
+    await call.answer(message, show_alert=True)
     await admin_settings_menu(call, state)
 
 

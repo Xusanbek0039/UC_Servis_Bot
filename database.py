@@ -86,6 +86,7 @@ async def init_db():
         {"key": "bank_name", "value": "Kapitalbank / Uzcard / Humo"},
         {"key": "support_username", "value": "@PubgUcSupport"},
         {"key": "delivery_mode", "value": DELIVERY_MODE},
+        {"key": "pricing_mode", "value": "MANUAL"},
     ]
     for s in default_settings:
         await db.settings.update_one(
@@ -257,7 +258,11 @@ async def get_recent_users(limit: int = 8) -> List[Dict[str, Any]]:
 
 async def get_active_products() -> List[Dict[str, Any]]:
     db = get_db()
-    cursor = db.products.find({"is_active": 1, "manual_block": {"$ne": True}, "auto_block_reason": {"$in": ["", None]}, "supplier_price_usd": {"$gt": 0}, "supplier_product_id": {"$exists": True, "$ne": ""}, "supplier_variation_id": {"$exists": True, "$ne": ""}, "max_price": {"$gt": 0}, "price": {"$gt": 0}}).sort([("sort_order", ASCENDING), ("uc_amount", ASCENDING)])
+    if await get_pricing_mode() == "MANUAL":
+        query = {"is_active": 1, "manual_block": {"$ne": True}, "price": {"$gt": 0}}
+    else:
+        query = {"is_active": 1, "manual_block": {"$ne": True}, "auto_block_reason": {"$in": ["", None]}, "supplier_price_usd": {"$gt": 0}, "supplier_product_id": {"$exists": True, "$ne": ""}, "supplier_variation_id": {"$exists": True, "$ne": ""}, "max_price": {"$gt": 0}, "price": {"$gt": 0}}
+    cursor = db.products.find(query).sort([("sort_order", ASCENDING), ("uc_amount", ASCENDING)])
     products = []
     async for doc in cursor:
         products.append(clean_doc(doc))
@@ -313,6 +318,19 @@ async def update_product_price(product_id: int, new_price: float) -> bool:
         {"$set": {"price": float(new_price)}},
     )
     return res.modified_count > 0
+
+
+async def get_pricing_mode() -> str:
+    mode = (await get_setting("pricing_mode", "MANUAL")).strip().upper()
+    return "LIOGAMES" if mode == "LIOGAMES" else "MANUAL"
+
+
+async def set_pricing_mode(mode: str) -> bool:
+    mode = str(mode).strip().upper()
+    if mode not in {"MANUAL", "LIOGAMES"}:
+        return False
+    await set_setting("pricing_mode", mode)
+    return True
 
 
 async def toggle_product_status(product_id: int) -> bool:
@@ -393,6 +411,7 @@ async def create_order(telegram_id: int, player_id: str, product_id: int, price:
         "product_name": prod.get("name", "") if prod else "",
         "supplier_product_id": str(snapshot.get("supplier_product_id", prod.get("supplier_product_id", ""))) if prod else "",
         "supplier_variation_id": str(snapshot.get("supplier_variation_id", prod.get("supplier_variation_id", ""))) if prod else "",
+        "pricing_mode": str(snapshot.get("pricing_mode", "MANUAL")),
         "payment_method": payment_method,
         "screenshot_file_id": "",
         # Proof channel fields

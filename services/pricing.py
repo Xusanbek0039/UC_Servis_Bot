@@ -22,7 +22,13 @@ def calculate_price(supplier_price_usd, usd_rate, profit_percent, max_price=0) -
     return PriceQuote(cost, sale, reason)
 
 
-def product_sellable(product: dict) -> bool:
+def product_sellable(product: dict, pricing_mode: str = "LIOGAMES") -> bool:
+    if str(pricing_mode).upper() == "MANUAL":
+        return bool(
+            product.get("is_active", 1) == 1
+            and not product.get("manual_block")
+            and float(product.get("price", 0) or 0) > 0
+        )
     return bool(
         product.get("is_active", 1) == 1
         and not product.get("manual_block")

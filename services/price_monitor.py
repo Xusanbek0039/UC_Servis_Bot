@@ -92,6 +92,8 @@ async def update_usd_rate(bot=None) -> bool:
 
 
 async def refresh_product_prices(bot=None) -> None:
+    if await db.get_pricing_mode() == "MANUAL":
+        return
     rate = float(await db.get_setting("usd_rate", "0") or 0)
     for product in await db.get_all_products():
         mapping = LIOGAMES_PRODUCT_MAP.get(str(product.get("uc_amount")), {})

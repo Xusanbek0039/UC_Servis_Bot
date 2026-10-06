@@ -39,7 +39,7 @@ async def start_buy_uc(call: CallbackQuery, state: FSMContext):
 @router.message(OrderStates.WAITING_PLAYER_ID)
 async def process_player_id(message: Message, state: FSMContext):
     """Validate player ID format and lookup via Midasbuy."""
-    player_id = message.text.strip()
+    player_id = (message.text or "").strip()
 
     if not is_valid_player_id(player_id):
         text = (
@@ -50,6 +50,21 @@ async def process_player_id(message: Message, state: FSMContext):
             f"Iltimos, tekshirib qaytadan kiriting:"
         )
         await message.answer(text, reply_markup=nav_back_home_keyboard("btn_home"))
+        return
+
+    # In manual mode, skip supplier lookup and make the user aware the ID needs manual review.
+    if await db.get_pricing_mode() == "MANUAL":
+        await state.update_data(player_id=player_id, nickname="Qo'lda tekshiriladi", player_id_verified=False)
+        text = (
+            f"{DIVIDER}\n"
+            f"   {E('profile')} <b>PLAYER ID QABUL QILINDI</b>\n"
+            f"{DIVIDER}\n\n"
+            f"{E('game')} <b>O'yin:</b> PUBG Mobile\n"
+            f"🆔 <b>Player ID:</b> <code>{player_id}</code>\n"
+            f"{SUB_DIVIDER}\n"
+            "⚠️ LioGames tekshiruvi o'chiq. To'lovdan oldin ID'ni diqqat bilan tekshiring; buyurtma operator tomonidan qo'lda bajariladi."
+        )
+        await message.answer(text, reply_markup=player_confirm_keyboard())
         return
 
     # Configuration/API errors are distinct from a genuine "player not found" result.
@@ -85,8 +100,9 @@ async def process_player_id(message: Message, state: FSMContext):
         return
 
     # Save player ID and nickname in FSM
-    await state.update_data(player_id=player_id, nickname=nickname)
+    await state.update_data(player_id=player_id, nickname=nickname, player_id_verified=True)
 
+    confirmation_note = f"{E('verified')} <i>Ushbu akkauntga UC yuklansinmi?</i>"
     text = (
         f"{DIVIDER}\n"
         f"   {E('profile')} <b>PLAYER TASDIQLASH</b>\n"
@@ -95,7 +111,7 @@ async def process_player_id(message: Message, state: FSMContext):
         f"{E('profile')} <b>Nickname:</b> <b>{nickname}</b>\n"
         f"🆔 <b>Player ID:</b> <code>{player_id}</code>\n"
         f"{SUB_DIVIDER}\n"
-        f"{E('verified')} <i>Ushbu akkauntga UC yuklansinmi?</i>"
+        f"{confirmation_note}"
     )
     await wait_msg.edit_text(text, reply_markup=player_confirm_keyboard())
 
@@ -155,22 +171,28 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         await call.answer("Tanlangan paket topilmadi!", show_alert=True)
         return
 
-    if product.get("manual_block") or product.get("is_active") != 1 or product.get("auto_block_reason") == "SUPPLIER_UNAVAILABLE":
+    pricing_mode = await db.get_pricing_mode()
+    if product.get("manual_block") or product.get("is_active") != 1:
         await call.answer("Bu paket hozircha sotuvda mavjud emas.", show_alert=True)
         await show_products_list(call, state)
         return
 
     rate = float(await db.get_setting("usd_rate", "0") or 0)
-    quote = calculate_price(product.get("supplier_price_usd", 0), rate, product.get("profit_percent", 0), product.get("max_price", 0))
-    if quote.blocked_reason:
-        await db.set_product_pricing(product_id, auto_block_reason=quote.blocked_reason)
-        await call.answer("Bu paketning narxi hozircha belgilangan limitdan oshdi yoki supplier narxi yo'q.", show_alert=True)
-        await show_products_list(call, state)
-        return
-    await db.set_product_pricing(product_id, cost_price=float(quote.cost_uzs), price=float(quote.sale_price), auto_block_reason="")
-    product = await db.get_product(product_id)
+    if pricing_mode == "LIOGAMES":
+        if product.get("auto_block_reason"):
+            await call.answer("LioGames narxi tasdiqlanmagani uchun paket vaqtincha yopiq.", show_alert=True)
+            await show_products_list(call, state)
+            return
+        quote = calculate_price(product.get("supplier_price_usd", 0), rate, product.get("profit_percent", 0), product.get("max_price", 0))
+        if quote.blocked_reason:
+            await db.set_product_pricing(product_id, auto_block_reason=quote.blocked_reason)
+            await call.answer("Bu paket narxi belgilangan limitdan oshdi yoki supplier narxi yo'q.", show_alert=True)
+            await show_products_list(call, state)
+            return
+        await db.set_product_pricing(product_id, cost_price=float(quote.cost_uzs), price=float(quote.sale_price), auto_block_reason="")
+        product = await db.get_product(product_id)
 
-    if not await db.global_sales_enabled() or not product_sellable(product) or float(product.get("price", 0)) <= 0:
+    if not await db.global_sales_enabled() or not product_sellable(product, pricing_mode) or float(product.get("price", 0)) <= 0:
         await call.answer("Bu paket hozircha sotuvda mavjud emas.", show_alert=True)
         await show_products_list(call, state)
         return
@@ -194,6 +216,7 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         max_price=product.get("max_price", 0),
         supplier_product_id=product.get("supplier_product_id", ""),
         supplier_variation_id=product.get("supplier_variation_id", ""),
+        pricing_mode=pricing_mode,
     )
 
     await state.update_data(order_id=order_id, product_id=product["id"], price=product["price"])

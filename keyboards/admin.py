@@ -74,7 +74,7 @@ def admin_order_detail_keyboard(order: Dict[str, Any]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def admin_products_management_keyboard(products: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
+def admin_products_management_keyboard(products: List[Dict[str, Any]], pricing_mode: str = "LIOGAMES") -> InlineKeyboardMarkup:
     """List products with add and back buttons."""
     buttons = []
     for p in products:
@@ -84,12 +84,13 @@ def admin_products_management_keyboard(products: List[Dict[str, Any]]) -> Inline
         buttons.append([InlineKeyboardButton(text=text, callback_data=f"adm_prod_view:{p.get('id')}")])
 
     buttons.append([InlineKeyboardButton(text=f"{E('star', True)} Yangi paket qo'shish", callback_data="adm_add_product")])
-    buttons.append([InlineKeyboardButton(text=f"{E('refresh', True)} LioGames narxlarini yangilash", callback_data="adm_supplier_refresh")])
+    if pricing_mode == "LIOGAMES":
+        buttons.append([InlineKeyboardButton(text=f"{E('refresh', True)} LioGames narxlarini yangilash", callback_data="adm_supplier_refresh")])
     buttons.append([InlineKeyboardButton(text=f"{E('back', True)} Admin panel", callback_data="btn_admin_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def admin_single_product_keyboard(product_id: int, is_active: int) -> InlineKeyboardMarkup:
+def admin_single_product_keyboard(product_id: int, is_active: int, pricing_mode: str = "LIOGAMES") -> InlineKeyboardMarkup:
     """Controls for a single product."""
     status_toggle_text = "🔴 Deaktiv qilish" if is_active == 1 else "🟢 Faollashtirish"
     return InlineKeyboardMarkup(
@@ -98,7 +99,7 @@ def admin_single_product_keyboard(product_id: int, is_active: int) -> InlineKeyb
                 InlineKeyboardButton(text=f"{E('edit', True)} Narxni o'zgartirish", callback_data=f"adm_prod_chg_price:{product_id}"),
                 InlineKeyboardButton(text=status_toggle_text, callback_data=f"adm_prod_toggle:{product_id}"),
             ],
-            [InlineKeyboardButton(text="📈 Foizni o'zgartirish", callback_data=f"adm_profit:{product_id}"), InlineKeyboardButton(text="💰 Max narx", callback_data=f"adm_max_price:{product_id}")],
+            *([[InlineKeyboardButton(text="📈 Foizni o'zgartirish", callback_data=f"adm_profit:{product_id}"), InlineKeyboardButton(text="💰 Max narx", callback_data=f"adm_max_price:{product_id}")]] if pricing_mode == "LIOGAMES" else []),
             [InlineKeyboardButton(text="⛔ Manual blok / 🟢 Ochish", callback_data=f"adm_manual_block:{product_id}")],
             [
                 InlineKeyboardButton(text=f"{E('cross', True)} Paketni o'chirish", callback_data=f"adm_prod_del:{product_id}"),
@@ -120,6 +121,7 @@ def admin_settings_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=f"{E('click', True)} Click rekviziti", callback_data="adm_set_payment:CLICK"), InlineKeyboardButton(text=f"{E('payme', True)} Payme rekviziti", callback_data="adm_set_payment:PAYME"), InlineKeyboardButton(text=f"{E('paynet', True)} Paynet rekviziti", callback_data="adm_set_payment:PAYNET")],
             [InlineKeyboardButton(text=f"{E('support', True)} Support username sozlash", callback_data="adm_set_support")],
             [InlineKeyboardButton(text=f"{E('proof', True)} Isbot kanal havolasini sozlash", callback_data="adm_set_proof_channel")],
+            [InlineKeyboardButton(text="💵 Narxlash manbasini almashtirish", callback_data="adm_toggle_pricing_mode")],
             [InlineKeyboardButton(text=f"{E('refresh', True)} Yetkazish rejimini almashtirish", callback_data="adm_toggle_delivery")],
             [InlineKeyboardButton(text=f"{E('back', True)} Admin panel", callback_data="btn_admin_menu")],
         ]

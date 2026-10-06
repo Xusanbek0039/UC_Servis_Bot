@@ -40,6 +40,12 @@ class PricingTests(unittest.TestCase):
         item["max_price"] = 6
         self.assertTrue(product_sellable(item))
 
+    def test_manual_mode_needs_only_an_active_package_and_sale_price(self):
+        item = {"is_active": 1, "manual_block": False, "auto_block_reason": "SUPPLIER_UNAVAILABLE", "price": 15000}
+        self.assertTrue(product_sellable(item, "MANUAL"))
+        item["manual_block"] = True
+        self.assertFalse(product_sellable(item, "MANUAL"))
+
     def test_catalogue_price_parser_finds_tier(self):
         data = {"data": [{"variation_id": 533766, "gold_price": "0.88", "available": True}]}
         self.assertEqual(_find_variation_price(data, "533766", "GOLD"), 0.88)
@@ -113,6 +119,7 @@ class OrderStateTests(unittest.IsolatedAsyncioTestCase):
             update_payment_status=AsyncMock(return_value=True),
             claim_delivery=AsyncMock(return_value=True),
             get_setting=AsyncMock(return_value="AUTO"),
+            get_pricing_mode=AsyncMock(return_value=order.get("pricing_mode", "MANUAL")),
             store_supplier_order=AsyncMock(),
             complete_delivery_once=AsyncMock(return_value=True),
             set_delivery_status=AsyncMock(return_value=True),
@@ -158,7 +165,7 @@ class OrderStateTests(unittest.IsolatedAsyncioTestCase):
         claim.assert_not_awaited()
 
     async def test_low_supplier_balance_stops_automatic_order_creation(self):
-        order = {"order_id": "PUBG-LOW", "user_id": 42, "status": "WAITING_PAYMENT", "payment_status": "PENDING", "delivery_status": "NOT_STARTED",
+        order = {"order_id": "PUBG-LOW", "user_id": 42, "status": "WAITING_PAYMENT", "payment_status": "PENDING", "delivery_status": "NOT_STARTED", "pricing_mode": "LIOGAMES",
                  "supplier_product_id": "66719", "supplier_variation_id": "533766", "player_id": "12345678"}
         with self._patch_db(order), patch("services.order_service.LIOGAMES_AUTO_DELIVERY", True), \
              patch("services.order_service.LIOGAMES_STOP_ON_LOW_BALANCE", True), \
@@ -166,6 +173,15 @@ class OrderStateTests(unittest.IsolatedAsyncioTestCase):
              patch.object(LioGamesService, "create_order", new=AsyncMock()) as create, \
              patch.object(OrderService, "notify_admins", new=AsyncMock()):
             self.assertFalse(await OrderService.handle_payment_success(AsyncMock(), "PUBG-LOW", "tx-low"))
+        create.assert_not_awaited()
+
+    async def test_manual_pricing_keeps_delivery_out_of_liogames(self):
+        order = {"order_id": "PUBG-MANUAL", "user_id": 42, "player_id": "12345678", "product_name": "60 UC", "price": 15000, "status": "WAITING_PAYMENT", "payment_status": "PENDING", "delivery_status": "NOT_STARTED", "pricing_mode": "MANUAL"}
+        with self._patch_db(order), patch("services.order_service.LIOGAMES_AUTO_DELIVERY", True), \
+             patch.object(LioGamesService, "create_order", new=AsyncMock()) as create, \
+             patch.object(OrderService, "notify_admins", new=AsyncMock()), \
+             patch.object(OrderService, "notify_user", new=AsyncMock()):
+            self.assertTrue(await OrderService.handle_payment_success(AsyncMock(), "PUBG-MANUAL", "tx-manual"))
         create.assert_not_awaited()
 
     async def test_proof_failure_does_not_roll_back_completed_delivery(self):
@@ -214,7 +230,7 @@ class MoreOrderStateTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_supplier_timeout_keeps_order_processing_for_reconciliation(self):
-        order = {"order_id": "PUBG-6", "user_id": 42, "status": "WAITING_PAYMENT", "payment_status": "PENDING", "delivery_status": "NOT_STARTED",
+        order = {"order_id": "PUBG-6", "user_id": 42, "status": "WAITING_PAYMENT", "payment_status": "PENDING", "delivery_status": "NOT_STARTED", "pricing_mode": "LIOGAMES",
                  "supplier_product_id": "66719", "supplier_variation_id": "533766", "player_id": "12345678"}
         error = LioGamesError("ambiguous", retryable=True)
         with self._patch_db(order), patch("services.order_service.LIOGAMES_AUTO_DELIVERY", True), \
