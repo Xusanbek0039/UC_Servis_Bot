@@ -1,14 +1,14 @@
 from typing import List, Dict, Any, Optional
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.helpers import format_currency
-from emojis import E
+from emojis import E, custom_emoji_id
 
 
 def main_menu_keyboard(is_admin: bool = False) -> InlineKeyboardMarkup:
     """Symmetric, modern main navigation inline keyboard."""
     buttons = [
         [
-            InlineKeyboardButton(text=f"{E('uc', True)} UC SOTIB OLISH", callback_data="btn_buy_uc")
+            InlineKeyboardButton(text="UC SOTIB OLISH", callback_data="btn_buy_uc", icon_custom_emoji_id=custom_emoji_id("uc"))
         ],
         [
             InlineKeyboardButton(text=f"{E('order', True)} Buyurtmalarim", callback_data="btn_my_orders"),
@@ -85,7 +85,7 @@ def products_keyboard(products: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
             suffix = ""
 
         text = f"{badge}{p['name']} — {price_str}{suffix}"
-        buttons.append([InlineKeyboardButton(text=text, callback_data=f"buy_prod:{p['id']}")])
+        buttons.append([InlineKeyboardButton(text=text, callback_data=f"buy_prod:{p['id']}", icon_custom_emoji_id=custom_emoji_id("uc"))])
 
     buttons.append([
         InlineKeyboardButton(text=f"{E('refresh', True)} ID'ni o'zgartirish", callback_data="btn_buy_uc"),
@@ -98,9 +98,9 @@ def payment_methods_keyboard(user_balance: float, order_price: float) -> InlineK
     """Payment methods selection with badges."""
     buttons = [
         [InlineKeyboardButton(text=f"{E('lightning', True)} Onlayn to'lov (Avtomatik)", callback_data="pay_method:TEZCHECK")],
-        [InlineKeyboardButton(text=f"{E('visa', True)} Visa", callback_data="pay_method:VISA"), InlineKeyboardButton(text=f"{E('humo', True)} Humo", callback_data="pay_method:HUMO")],
-        [InlineKeyboardButton(text=f"{E('mastercard', True)} Mastercard", callback_data="pay_method:MASTERCARD"), InlineKeyboardButton(text=f"{E('uzcard', True)} Uzcard", callback_data="pay_method:UZCARD")],
-        [InlineKeyboardButton(text=f"{E('click', True)} Click", callback_data="pay_method:CLICK"), InlineKeyboardButton(text=f"{E('payme', True)} Payme", callback_data="pay_method:PAYME"), InlineKeyboardButton(text=f"{E('paynet', True)} Paynet", callback_data="pay_method:PAYNET")],
+        [InlineKeyboardButton(text="Visa", callback_data="pay_method:VISA", icon_custom_emoji_id=custom_emoji_id("visa")), InlineKeyboardButton(text="Humo", callback_data="pay_method:HUMO", icon_custom_emoji_id=custom_emoji_id("humo"))],
+        [InlineKeyboardButton(text="Mastercard", callback_data="pay_method:MASTERCARD", icon_custom_emoji_id=custom_emoji_id("mastercard")), InlineKeyboardButton(text="Uzcard", callback_data="pay_method:UZCARD", icon_custom_emoji_id=custom_emoji_id("uzcard"))],
+        [InlineKeyboardButton(text="Click", callback_data="pay_method:CLICK", icon_custom_emoji_id=custom_emoji_id("click")), InlineKeyboardButton(text="Payme", callback_data="pay_method:PAYME", icon_custom_emoji_id=custom_emoji_id("payme")), InlineKeyboardButton(text="Paynet", callback_data="pay_method:PAYNET", icon_custom_emoji_id=custom_emoji_id("paynet"))],
     ]
 
     if user_balance >= order_price:
@@ -123,7 +123,7 @@ def tezcheck_pay_keyboard(pay_url: str, order_id: str) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=f"{E('lightning', True)} To'lovni davom ettirish", url=pay_url)],
             [InlineKeyboardButton(text=f"{E('refresh', True)} To'lovni tekshirish", callback_data=f"chk_pay:{order_id}")],
             [
-                InlineKeyboardButton(text=f"{E('card', True)} Boshqa usul", callback_data=f"change_method:{order_id}"),
+                InlineKeyboardButton(text="Boshqa usul", callback_data=f"change_method:{order_id}", icon_custom_emoji_id=custom_emoji_id("card")),
                 InlineKeyboardButton(text=f"{E('cross', True)} Bekor qilish", callback_data=f"cancel_ord:{order_id}"),
             ],
         ]
@@ -145,7 +145,7 @@ def order_success_keyboard() -> InlineKeyboardMarkup:
     """Completion confirmation buttons."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=f"{E('uc', True)} Yana UC xarid qilish", callback_data="btn_buy_uc")],
+            [InlineKeyboardButton(text="Yana UC xarid qilish", callback_data="btn_buy_uc", icon_custom_emoji_id=custom_emoji_id("uc"))],
             [
                 InlineKeyboardButton(text=f"{E('order', True)} Buyurtmalarim", callback_data="btn_my_orders"),
                 InlineKeyboardButton(text=f"{E('home', True)} Asosiy menyu", callback_data="btn_home"),
@@ -162,7 +162,7 @@ def profile_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=f"{E('order', True)} Buyurtmalarim", callback_data="btn_my_orders"),
                 InlineKeyboardButton(text=f"{E('balance', True)} Balansim", callback_data="btn_my_balance"),
             ],
-            [InlineKeyboardButton(text=f"{E('uc', True)} UC sotib olish", callback_data="btn_buy_uc")],
+            [InlineKeyboardButton(text="UC sotib olish", callback_data="btn_buy_uc", icon_custom_emoji_id=custom_emoji_id("uc"))],
             [InlineKeyboardButton(text=f"{E('home', True)} Asosiy menyu", callback_data="btn_home")],
         ]
     )
@@ -173,8 +173,8 @@ def balance_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text=f"{E('card', True)} Balansni to'ldirish", callback_data="btn_topup_balance"),
-                InlineKeyboardButton(text=f"{E('uc', True)} UC sotib olish", callback_data="btn_buy_uc"),
+                InlineKeyboardButton(text="Balansni to'ldirish", callback_data="btn_topup_balance", icon_custom_emoji_id=custom_emoji_id("card")),
+                InlineKeyboardButton(text="UC sotib olish", callback_data="btn_buy_uc", icon_custom_emoji_id=custom_emoji_id("uc")),
             ],
             [InlineKeyboardButton(text=f"{E('home', True)} Asosiy menyu", callback_data="btn_home")],
         ]

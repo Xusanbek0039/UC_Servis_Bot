@@ -187,3 +187,10 @@ def get_emoji(key: str, for_button: bool = False) -> str:
 def E(key: str, for_button: bool = False) -> str:
     """Shorthand alias for get_emoji."""
     return get_emoji(key, for_button)
+
+
+def custom_emoji_id(key: str) -> str | None:
+    """Return configured ID for Telegram buttons that support custom emoji icons."""
+    conf = EMOJI_CONFIG.get(key, {})
+    custom_id = os.getenv(conf.get("env_var", ""), conf.get("default_id", "")).strip()
+    return custom_id if custom_id.isdigit() else None
