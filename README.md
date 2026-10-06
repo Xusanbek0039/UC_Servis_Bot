@@ -44,7 +44,7 @@ pubg_uc_bot/
 │   ├── __init__.py
 │   ├── tezcheck.py       # TezCheck to'lov tizimi integratsiyasi
 │   ├── payment_monitor.py # Kutilayotgan to'lovlarni bot ichida tekshirish
-│   ├── midasbuy.py       # Midasbuy API / Player validation
+│   ├── liogames.py       # LioGames signed API / player validation / delivery
 │   └── order_service.py  # Buyurtmalarni yakunlash va xabarnomalar
 │
 ├── keyboards/            # Inline klaviaturalar
@@ -117,10 +117,15 @@ TEZCHECK_API_KEY=your_tezcheck_key
 TEZCHECK_CASH_DESK_CODE=your_cash_desk_code
 TEZCHECK_BASE_URL=https://api.tezcheck.uz
 
-# Midasbuy API (ixtiyoriy)
-MIDASBUY_API_KEY=
-MIDASBUY_APP_ID=
-MIDASBUY_BASE_URL=https://api.midasbuy.com
+# LioGames (maxfiy qiymatlarni faqat Render Environment yoki .env da saqlang)
+LIOGAMES_MEMBER_CODE=your_member_code
+LIOGAMES_SECRET=your_private_secret
+LIOGAMES_AUTO_DELIVERY=false
+LIOGAMES_PRICE_TIER=GOLD
+LIOGAMES_VARIATIONS={"60":{"product_id":66719,"variation_id":533766}}
+MAX_PROFIT_PERCENT=200
+USD_RATE_URL=https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/
+BACKUP_DIR=backups
 ```
 
 ### 4-qadam: Botni ishga tushirish
@@ -170,7 +175,7 @@ Admin botda `/admin` buyrug'ini yuboradi.
   - Foydalanuvchi karta orqali to'lab chek tashlaganda adminga skrinshot va order ma'lumoti keladi.
   - **✅ To'lovni tasdiqlash:** Bosilganda buyurtma `PAID` / `PROCESSING` ga o'tadi.
   - **❌ To'lovni rad etish:** Buyurtma bekor qilinadi, mijozga sababi xabar qilinadi.
-  - **🎮 UC yuborildi:** UC hisobga tashlab berilgach adminga bitta tugma orqali buyurtmani `COMPLETED` qilish imkoni beriladi. Mijozga avtomatik "Buyurtmangiz muvaffaqiyatli yetkazildi! ✅" xabari yuboriladi.
+  - **🎮 UC yuborildi:** Qo'lda yetkazilgandan keyin admin tasdiqlaydi. Avtomatik rejimda esa LioGames yakuniy muvaffaqiyat statusini qaytargandan keyingina buyurtma `COMPLETED` bo'ladi va isbot kanaliga yuboriladi.
 
 ### 2. UC Paketlari boshqaruvi:
 - ➕ Yangi paket qo'shish (UC miqdori va narxi kiritiladi)
@@ -181,7 +186,7 @@ Admin botda `/admin` buyrug'ini yuboradi.
 ### 3. Tizim sozlamalari:
 - 💳 Karta raqami va karta egasi ismini botdan turib o'zgartirish
 - 📞 Qo'llab-quvvatlash (@admin username) sozlash
-- 🔄 Yetkazib berish rejimini o'zgartirish: `MANUAL` (Qo'lda) yoki `AUTO` (Avtomatik Midasbuy)
+- 🔄 Yetkazib berish rejimini o'zgartirish: `MANUAL` (Qo'lda) yoki `AUTO` (LioGames; credentials va paket mapping'i sozlangan bo'lishi kerak)
 
 ### 4. Statistika:
 - Jami buyurtmalar, bugungi buyurtmalar soni
@@ -201,17 +206,13 @@ Admin botda `/admin` buyrug'ini yuboradi.
 
 ## 📢 ISBOT KANALI (PROOF CHANNEL) TIZIMI
 
-Kanalda har bir buyurtmaning butun hayotiy sikli bitta postda **EDIT (tahrirlash)** orqali ko'rsatiladi:
+Kanalga faqat haqiqatan yetkazib berilishi yakunlangan buyurtma post qilinadi. To'lov tasdiqlanishi yoki yetkazish jarayoni isbot sifatida e'lon qilinmaydi:
 
 ```
-🛒 BUYURTMA QABUL QILINDI  (Post yuboriladi, message_id saqlanadi)
-         ↓
-⚙️ BUYURTMA JARAYONDA      (Mavjud post tahrirlanadi)
-         ↓
-✨ BUYURTMA BAJARILDI      (Aynan o'sha post yakuniy holatga tahrirlanadi)
+✨ BUYURTMA BAJARILDI      (LioGames yoki admin yetkazilganini tasdiqlagach)
 ```
 
-> **Eng muhim xususiyat:** Har bir buyurtma uchun kanalga ortiqcha yangi xabarlar yuborilmaydi. **Bitta buyurtma = Bitta proof post.**
+Buyurtma faqat `delivery_status=COMPLETED` bo'lsa yuboriladi. To'lovning o'zi UC yetkazildi degani emas.
 
 ### 🛠 Isbot kanalini sozlash bo'yicha qo'llanma:
 

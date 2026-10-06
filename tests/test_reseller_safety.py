@@ -111,6 +111,7 @@ class OrderStateTests(unittest.IsolatedAsyncioTestCase):
             store_supplier_order=AsyncMock(),
             complete_delivery_once=AsyncMock(return_value=True),
             set_delivery_status=AsyncMock(return_value=True),
+            mark_supplier_submission_started=AsyncMock(),
             update_order_status=AsyncMock(return_value=True),
         )
 
@@ -203,6 +204,7 @@ class MoreOrderStateTests(unittest.IsolatedAsyncioTestCase):
             store_supplier_order=AsyncMock(),
             complete_delivery_once=AsyncMock(return_value=True),
             set_delivery_status=AsyncMock(return_value=True),
+            mark_supplier_submission_started=AsyncMock(),
             update_order_status=AsyncMock(return_value=True),
         )
 
@@ -217,7 +219,8 @@ class MoreOrderStateTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result)
 
     async def test_pending_supplier_status_never_marks_completed(self):
-        with patch("services.order_service.db.store_supplier_order", new=AsyncMock()), \
+        with patch("services.order_service.db.get_order", new=AsyncMock(return_value={"order_id": "PUBG-7", "payment_status": "SUCCESS", "delivery_status": "PROCESSING"})), \
+             patch("services.order_service.db.store_supplier_order", new=AsyncMock()), \
              patch("services.order_service.db.set_delivery_status", new=AsyncMock()), \
              patch("services.order_service.db.update_order_status", new=AsyncMock()), \
              patch("services.order_service.db.complete_delivery_once", new=AsyncMock()) as complete:
@@ -226,7 +229,8 @@ class MoreOrderStateTests(unittest.IsolatedAsyncioTestCase):
         complete.assert_not_awaited()
 
     async def test_supplier_failure_goes_to_manual_review(self):
-        with patch("services.order_service.db.store_supplier_order", new=AsyncMock()), \
+        with patch("services.order_service.db.get_order", new=AsyncMock(return_value={"order_id": "PUBG-8", "payment_status": "SUCCESS", "delivery_status": "PROCESSING", "user_id": 42})), \
+             patch("services.order_service.db.store_supplier_order", new=AsyncMock()), \
              patch("services.order_service.db.set_delivery_status", new=AsyncMock()), \
              patch("services.order_service.db.update_order_status", new=AsyncMock()) as update, \
              patch.object(OrderService, "notify_admins", new=AsyncMock()):

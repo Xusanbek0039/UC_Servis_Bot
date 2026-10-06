@@ -2,7 +2,7 @@
 import asyncio
 import gzip
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from bson import json_util
@@ -17,7 +17,7 @@ COLLECTIONS = ("users", "orders", "payments", "products", "settings", "counters"
 async def create_backup(destination: Path | None = None) -> Path:
     target_dir = destination or (Path(__file__).resolve().parents[1] / BACKUP_DIR)
     target_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
     target = target_dir / f"mongodb-backup-{stamp}.json.gz"
     database = db.get_db()
     archive = {}
@@ -25,10 +25,10 @@ async def create_backup(destination: Path | None = None) -> Path:
         archive[name] = [doc async for doc in database[name].find({})]
     payload = json_util.dumps(archive, ensure_ascii=False).encode("utf-8")
     await asyncio.to_thread(_write_gzip, target, payload)
-    cutoff = datetime.utcnow() - timedelta(days=BACKUP_RETENTION_DAYS)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=BACKUP_RETENTION_DAYS)
     for old in target_dir.glob("mongodb-backup-*.json.gz"):
         try:
-            if datetime.utcfromtimestamp(old.stat().st_mtime) < cutoff:
+            if datetime.fromtimestamp(old.stat().st_mtime, timezone.utc) < cutoff:
                 old.unlink()
         except OSError:
             logger.warning("Could not prune an old MongoDB backup file")

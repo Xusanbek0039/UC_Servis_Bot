@@ -210,7 +210,7 @@ class ProofChannelService:
             if not order:
                 logger.warning(f"Order {order_id} not found when generating proof post")
                 return False
-            if order.get("delivery_status") != "COMPLETED" and order.get("status") != "COMPLETED":
+            if order.get("delivery_status") != "COMPLETED":
                 logger.warning("Refusing proof post for undelivered order %s", order_id)
                 return False
 

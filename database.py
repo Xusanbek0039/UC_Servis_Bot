@@ -55,6 +55,7 @@ async def init_db():
     await db.settings.create_index([("key", ASCENDING)], unique=True)
     await db.payments.create_index([("order_id", ASCENDING)])
     await db.payments.create_index([("bill_id", ASCENDING)], unique=True, partialFilterExpression={"bill_id": {"$gt": ""}})
+    await db.payments.create_index([("provider_payment_id", ASCENDING)], unique=True, partialFilterExpression={"provider_payment_id": {"$gt": ""}})
     await db.supplier_orders.create_index([("order_id", ASCENDING)], unique=True)
     await db.price_snapshots.create_index([("order_id", ASCENDING)], unique=True)
 
@@ -554,7 +555,10 @@ async def expire_unpaid_orders() -> int:
         {"payment_status": "PENDING", "status": "WAITING_PAYMENT", "payment_expires_at": {"$lte": now}},
         {"$set": {"payment_status": "EXPIRED", "status": "EXPIRED", "updated_at": now}},
     )
-    await get_db().payments.update_many({"status": "PENDING", "created_at": {"$lte": now - timedelta(minutes=20)}}, {"$set": {"status": "EXPIRED"}})
+    await get_db().payments.update_many(
+        {"status": "PENDING", "created_at": {"$lte": now - timedelta(minutes=ORDER_PAYMENT_TTL_MINUTES)}},
+        {"$set": {"status": "EXPIRED", "expired_at": now, "monitor_until": now + timedelta(hours=24)}},
+    )
     return result.modified_count
 
 
@@ -720,19 +724,20 @@ async def create_payment(
 
 async def get_pending_tezcheck_payments(limit: int = 100) -> List[Dict[str, Any]]:
     db = get_db()
+    now = datetime.now()
     cursor = db.payments.find({
         "payment_method": "TEZCHECK",
-        "status": "PENDING",
+        "$or": [{"status": "PENDING"}, {"status": "EXPIRED", "monitor_until": {"$gt": now}}],
         "bill_id": {"$exists": True, "$ne": ""},
     }).sort("created_at", ASCENDING).limit(limit)
     return [clean_doc(doc) async for doc in cursor]
 
 
-async def mark_payment_paid_if_pending(order_id: str, raw_data: str = "") -> bool:
+async def mark_payment_paid_if_pending(order_id: str, raw_data: str = "", provider_payment_id: str = "") -> bool:
     db = get_db()
     result = await db.payments.update_one(
         {"order_id": order_id, "payment_method": "TEZCHECK", "status": "PENDING"},
-        {"$set": {"status": "SUCCESS", "raw_data": raw_data, "paid_at": datetime.now()}},
+        {"$set": {"status": "SUCCESS", "raw_data": raw_data, "provider_payment_id": provider_payment_id, "paid_at": datetime.now()}},
     )
     return result.modified_count == 1
 

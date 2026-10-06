@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from aiogram import Bot
@@ -128,7 +129,7 @@ class OrderService:
         supplier_id = str(nested.get("order_id") or nested.get("id") or "")
         await db.store_supplier_order(order_id, supplier_id, status, data)
         if status in ("COMPLETED", "SUCCESS", "DONE"):
-            updated = await db.complete_delivery_once(order_id, supplier_status=status, delivered_at=__import__("datetime").datetime.utcnow())
+            updated = await db.complete_delivery_once(order_id, supplier_status=status, delivered_at=datetime.now(timezone.utc))
             if updated:
                 order = await db.get_order(order_id)
                 await ProofChannelService.send_or_update_proof(bot, order_id, "COMPLETED")
@@ -167,7 +168,7 @@ class OrderService:
         order = await db.get_order(order_id)
         if not order or order.get("payment_status") != "SUCCESS" or order.get("delivery_status") not in ("PROCESSING", "FAILED"):
             return False
-        if not await db.complete_delivery_once(order_id, supplier_status="MANUAL_CONFIRMED", delivered_at=__import__("datetime").datetime.utcnow()):
+        if not await db.complete_delivery_once(order_id, supplier_status="MANUAL_CONFIRMED", delivered_at=datetime.now(timezone.utc)):
             return False
         order = await db.get_order(order_id)
         await ProofChannelService.send_or_update_proof(bot, order_id=order_id, new_proof_status="COMPLETED")

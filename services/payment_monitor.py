@@ -53,6 +53,14 @@ async def check_tezcheck_payment(bot: Bot, payment: Dict[str, Any], notify_user:
         return "mismatch"
 
     raw_data = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+    if payment.get("status") == "EXPIRED":
+        await db.update_payment_status(reference, "LATE_PAYMENT_REVIEW", raw_data)
+        for admin_id in __import__("config").ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, f"⚠️ Muddati o'tgan TezCheck hisobiga kech to'lov tushdi; avtomatik balans/order berilmadi: {reference}")
+            except Exception:
+                pass
+        return "late_payment"
     if payment.get("payment_type") == "BALANCE_TOPUP":
         credited = await db.credit_topup_if_pending(reference, raw_data)
         if not credited:
@@ -79,7 +87,7 @@ async def check_tezcheck_payment(bot: Bot, payment: Dict[str, Any], notify_user:
             except Exception:
                 pass
         return "late_payment"
-    if not await db.mark_payment_paid_if_pending(reference, raw_data):
+    if not await db.mark_payment_paid_if_pending(reference, raw_data, str(provider_payment.get("id", ""))):
         if payment.get("status") == "SUCCESS":
             await OrderService.handle_payment_success(bot, order_id=reference, provider_tx_id=str(provider_payment.get("id", "")))
         return "already_processed"

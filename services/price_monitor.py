@@ -62,6 +62,7 @@ async def update_usd_rate(bot=None) -> bool:
             raise ValueError("USD/UZS rate is outside accepted range")
         await db.set_setting("usd_rate", str(rate))
         await db.set_setting("usd_rate_updated_at", datetime.utcnow().isoformat())
+        await db.set_setting("usd_rate_alerted", "false")
         return True
     except Exception as exc:
         logger.warning("USD rate refresh failed (%s); retaining last known value", type(exc).__name__)
@@ -69,7 +70,6 @@ async def update_usd_rate(bot=None) -> bool:
             await _alert_admins(bot, "⚠️ USD kursini CBU'dan yangilab bo'lmadi. Oxirgi yaroqli kurs saqlanmoqda.")
             await db.set_setting("usd_rate_alerted", "true")
         return False
-    await db.set_setting("usd_rate_alerted", "false")
 
 
 async def refresh_product_prices(bot=None) -> None:

@@ -220,7 +220,7 @@ async def admin_trigger_proof(call: CallbackQuery, bot: Bot):
         await call.answer("Buyurtma topilmadi!", show_alert=True)
         return
 
-    if order.get("delivery_status") != "COMPLETED" and order.get("status") != "COMPLETED":
+    if order.get("delivery_status") != "COMPLETED":
         await call.answer("Isbot faqat yetkazish yakunlangandan keyin yuboriladi.", show_alert=True)
         return
     target_proof_status = "COMPLETED"
