@@ -58,7 +58,7 @@ class OrderService:
         if not await db.claim_delivery(order_id):
             return True
 
-        mode = await db.get_setting("delivery_mode", "MANUAL").upper()
+        mode = (await db.get_setting("delivery_mode", "MANUAL")).upper()
         if mode != "AUTO" or not LIOGAMES_AUTO_DELIVERY:
             await db.set_delivery_status(order_id, "PROCESSING")
             await db.update_order_status(order_id, "PAID")
@@ -80,7 +80,9 @@ class OrderService:
                     await db.set_delivery_status(order_id, "FAILED", supplier_status="LOW_BALANCE", last_supplier_error="Supplier wallet below threshold")
                     await db.update_order_status(order_id, "MANUAL_REVIEW")
                     await cls.notify_admins(bot, f"⚠️ LioGames balansi ${wallet:.2f}; order <code>{order_id}</code> avtomatik yuborilmadi. Balansni to'ldiring yoki qo'lda yetkazing.")
+                    await cls.notify_user(bot, order["user_id"], f"⚠️ To'lovingiz qabul qilindi, ammo supplier balansidagi vaqtinchalik muammo sabab buyurtma operator tekshiruviga yuborildi. Order: <code>{order_id}</code>.")
                     return False
+            await db.mark_supplier_submission_started(order_id)
             # LioGames' client_ref is our immutable order_id. create_order does not blindly retry.
             result = await LioGamesService.create_order(
                 order_id=order_id,
@@ -92,7 +94,9 @@ class OrderService:
             supplier_id = str(nested.get("order_id") or nested.get("id") or "")
             status = str(nested.get("status") or "PENDING").upper()
             await db.store_supplier_order(order_id, supplier_id, status, result)
-            await cls.apply_supplier_status(bot, order_id, result)
+            applied = await cls.apply_supplier_status(bot, order_id, result)
+            if applied == "PROCESSING":
+                await cls.notify_user(bot, order["user_id"], f"✅ To'lov qabul qilindi. UC supplier orqali yetkazilmoqda. Order: <code>{order_id}</code>. Yakunlangach xabar beramiz.")
             return status not in ("FAILED", "REJECTED", "CANCELLED")
         except LioGamesError as exc:
             if exc.retryable:
@@ -103,6 +107,7 @@ class OrderService:
                 await db.set_delivery_status(order_id, "FAILED", supplier_status="FAILED", last_supplier_error=str(exc)[:250])
                 await db.update_order_status(order_id, "MANUAL_REVIEW")
                 await cls.notify_admins(bot, f"❌ LioGames order xatosi: <code>{order_id}</code>. {str(exc)[:250]}")
+                await cls.notify_user(bot, order["user_id"], f"⚠️ To'lov qabul qilindi, ammo yetkazishda muammo bor. Operator buyurtmangizni tekshirmoqda. Order: <code>{order_id}</code>.")
             return False
 
     @staticmethod
@@ -117,6 +122,7 @@ class OrderService:
 
     @classmethod
     async def apply_supplier_status(cls, bot: Bot, order_id: str, data: dict) -> str:
+        existing_order = await db.get_order(order_id)
         nested = data.get("order") if isinstance(data.get("order"), dict) else data
         status = str(nested.get("status") or nested.get("order_status") or "UNKNOWN").upper()
         supplier_id = str(nested.get("order_id") or nested.get("id") or "")
@@ -133,13 +139,16 @@ class OrderService:
             await db.set_delivery_status(order_id, "FAILED", supplier_status=status)
             await db.update_order_status(order_id, "MANUAL_REVIEW")
             await cls.notify_admins(bot, f"❌ Supplier delivery failed. <code>{order_id}</code> status=<b>{status}</b>; operator tekshirishi kerak.")
+            if existing_order:
+                await cls.notify_user(bot, existing_order["user_id"], f"⚠️ Supplier buyurtmani yakunlay olmadi. Operator tekshiryapti. Order: <code>{order_id}</code>.")
             return "FAILED"
         if status in ("PENDING", "PROCESSING", "IN_PROGRESS", "QUEUED"):
             await db.set_delivery_status(order_id, "PROCESSING", supplier_status=status)
             await db.update_order_status(order_id, "PROCESSING")
             return "PROCESSING"
         await db.set_delivery_status(order_id, "PROCESSING", supplier_status="UNKNOWN")
-        await cls.notify_admins(bot, f"⚠️ LioGames noma'lum status qaytardi. <code>{order_id}</code>; status qiymatini tekshiring.")
+        if not existing_order or existing_order.get("supplier_status") != "UNKNOWN":
+            await cls.notify_admins(bot, f"⚠️ LioGames noma'lum status qaytardi. <code>{order_id}</code>; status qiymatini tekshiring.")
         return "UNKNOWN"
 
     @classmethod

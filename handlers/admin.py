@@ -19,7 +19,7 @@ from services.order_service import OrderService
 from services.proof_channel import ProofChannelService
 from utils.helpers import format_order_summary, format_currency, DIVIDER, SUB_DIVIDER, get_status_badge
 from emojis import E
-from services.pricing import calculate_price
+from services.pricing import calculate_price, product_sellable
 
 router = Router()
 logger = logging.getLogger("handlers.admin")
@@ -297,7 +297,7 @@ async def admin_products_list(call: CallbackQuery, state: FSMContext):
     for product in products:
         manual = bool(product.get("manual_block"))
         reason = product.get("auto_block_reason") or ""
-        status = "🔴 MANUAL BLOCK" if manual else (f"🔴 {reason}" if reason else ("🟢 ACTIVE" if product.get("is_active") == 1 and product.get("max_price", 0) else "🔴 INACTIVE/SETUP"))
+        status = "🔴 MANUAL BLOCK" if manual else (f"🔴 {reason}" if reason else ("🟢 ACTIVE" if product_sellable(product) else "🔴 BLOCKED/SETUP"))
         rows.append(
             f"📦 <b>{html.escape(product.get('name', 'UC'))}</b> · Cost {format_currency(product.get('cost_price', 0))} · "
             f"+{product.get('profit_percent', 0):g}% · MAX {format_currency(product.get('max_price', 0))} · {status}"
@@ -326,7 +326,7 @@ async def admin_view_single_product(call: CallbackQuery):
 
     manual = bool(product.get("manual_block"))
     auto_reason = product.get("auto_block_reason") or ""
-    status_str = "🔴 MANUAL BLOCK" if manual else (f"🔴 {auto_reason}" if auto_reason else ("🟢 ACTIVE" if product.get("is_active") == 1 else "🔴 INACTIVE"))
+    status_str = "🔴 MANUAL BLOCK" if manual else (f"🔴 {auto_reason}" if auto_reason else ("🟢 ACTIVE" if product_sellable(product) else "🔴 BLOCKED/SETUP"))
     text = (
         f"{DIVIDER}\n"
         f"   {E('uc')} <b>PAKET: {product['name']}</b>\n"

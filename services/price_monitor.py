@@ -21,14 +21,21 @@ def _find_variation_price(data, variation_id: str, tier: str):
             available = data.get("available", data.get("is_available", True))
             if available is False:
                 return None
-            for key in (tier.lower(), tier, "price_usd", "price", "amount"):
+            for key in (tier.lower(), tier, f"{tier.lower()}_price", f"price_{tier.lower()}", "price_usd", "price", "amount"):
                 if data.get(key) is not None:
                     try:
-                        value = float(data[key])
+                        raw_value = data[key]
+                        if isinstance(raw_value, dict):
+                            raw_value = raw_value.get("amount", raw_value.get("price", raw_value.get("value", 0)))
+                        value = float(raw_value)
                         return value if value > 0 else None
                     except (TypeError, ValueError):
                         pass
-        for value in data.values():
+        for key, value in data.items():
+            if str(key) == str(variation_id):
+                found = _find_variation_price({"variation_id": key, **value} if isinstance(value, dict) else value, variation_id, tier)
+                if found:
+                    return found
             found = _find_variation_price(value, variation_id, tier)
             if found:
                 return found

@@ -519,6 +519,17 @@ async def store_supplier_order(order_id: str, supplier_order_id: str, raw_status
     )
 
 
+async def mark_supplier_submission_started(order_id: str) -> None:
+    database = get_db()
+    now = datetime.now()
+    await database.orders.update_one({"order_id": order_id}, {"$set": {"supplier_submitted": True, "supplier_status": "SUBMITTING", "updated_at": now}})
+    await database.supplier_orders.update_one(
+        {"order_id": order_id},
+        {"$setOnInsert": {"order_id": order_id, "client_ref": order_id, "supplier_order_id": "", "status": "SUBMITTING", "created_at": now, "updated_at": now}},
+        upsert=True,
+    )
+
+
 async def set_delivery_status(order_id: str, delivery_status: str, **fields) -> bool:
     result = await get_db().orders.update_one({"order_id": order_id}, {"$set": {"delivery_status": delivery_status, "updated_at": datetime.now(), **fields}})
     return result.modified_count == 1
