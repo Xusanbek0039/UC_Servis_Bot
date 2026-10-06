@@ -175,7 +175,11 @@ async def reject_order_payment(call: CallbackQuery, bot: Bot):
     if not order:
         return
 
-    await db.update_order_status(order_id, "CANCELLED")
+    if order.get("payment_status", "PENDING") != "PENDING" or order.get("status") != "WAITING_PAYMENT":
+        await call.answer("To'lov qabul qilingan buyurtmani bekor qilmang; refund/manual review qiling.", show_alert=True)
+        return
+
+    await db.transition_order(order_id, ["WAITING_PAYMENT"], "CANCELLED", payment_status="FAILED")
     await OrderService.notify_user(
         bot,
         order["user_id"],
@@ -198,8 +202,8 @@ async def deliver_order_manual(call: CallbackQuery, bot: Bot):
         return
 
     order_id = call.data.split(":")[1]
-    await OrderService.mark_manual_delivered(bot, order_id=order_id)
-    await call.answer("✅ UC yuborildi deb tasdiqlandi!", show_alert=True)
+    completed = await OrderService.mark_manual_delivered(bot, order_id=order_id)
+    await call.answer("✅ UC yuborildi deb tasdiqlandi!" if completed else "Order yakunlashga tayyor emas yoki allaqachon yakunlangan.", show_alert=True)
     order = await db.get_order(order_id)
     await call.message.edit_text(format_order_summary(order), reply_markup=admin_order_detail_keyboard(order))
 
@@ -216,14 +220,10 @@ async def admin_trigger_proof(call: CallbackQuery, bot: Bot):
         await call.answer("Buyurtma topilmadi!", show_alert=True)
         return
 
-    # Choose target proof status based on actual order status
-    order_status = order.get("status", "")
-    if order_status == "COMPLETED":
-        target_proof_status = "COMPLETED"
-    elif order_status in ("PAID", "PROCESSING", "MANUAL_REVIEW"):
-        target_proof_status = "PROCESSING"
-    else:
-        target_proof_status = "RECEIVED"
+    if order.get("delivery_status") != "COMPLETED" and order.get("status") != "COMPLETED":
+        await call.answer("Isbot faqat yetkazish yakunlangandan keyin yuboriladi.", show_alert=True)
+        return
+    target_proof_status = "COMPLETED"
 
     success = await ProofChannelService.send_or_update_proof(
         bot=bot,

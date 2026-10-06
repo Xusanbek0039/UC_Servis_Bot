@@ -97,6 +97,18 @@ async def init_db():
     await db.products.update_many({"manual_block": {"$exists": False}}, {"$set": {"manual_block": False}})
     await db.products.update_many({"auto_block_reason": {"$exists": False}}, {"$set": {"auto_block_reason": ""}})
     await db.products.update_many({"supplier_price_usd": {"$exists": False}}, {"$set": {"supplier_price_usd": 0.0}})
+    await db.orders.update_many(
+        {"payment_status": {"$exists": False}, "status": {"$in": ["PAID", "PROCESSING", "MANUAL_REVIEW"]}},
+        {"$set": {"payment_status": "SUCCESS", "delivery_status": "PROCESSING"}},
+    )
+    await db.orders.update_many(
+        {"payment_status": {"$exists": False}, "status": "COMPLETED"},
+        {"$set": {"payment_status": "SUCCESS", "delivery_status": "LEGACY_COMPLETED_REVIEW"}},
+    )
+    await db.orders.update_many(
+        {"payment_status": {"$exists": False}},
+        {"$set": {"payment_status": "PENDING", "delivery_status": "NOT_STARTED"}},
+    )
 
     logger.info("MongoDB Atlas initialized successfully.")
 

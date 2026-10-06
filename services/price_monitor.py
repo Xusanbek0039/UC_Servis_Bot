@@ -40,7 +40,7 @@ def _find_variation_price(data, variation_id: str, tier: str):
     return None
 
 
-async def update_usd_rate() -> bool:
+async def update_usd_rate(bot=None) -> bool:
     try:
         async with httpx.AsyncClient(timeout=12) as client:
             response = await client.get(USD_RATE_URL)
@@ -58,7 +58,11 @@ async def update_usd_rate() -> bool:
         return True
     except Exception as exc:
         logger.warning("USD rate refresh failed (%s); retaining last known value", type(exc).__name__)
+        if bot and await db.get_setting("usd_rate_alerted", "false") != "true":
+            await _alert_admins(bot, "⚠️ USD kursini CBU'dan yangilab bo'lmadi. Oxirgi yaroqli kurs saqlanmoqda.")
+            await db.set_setting("usd_rate_alerted", "true")
         return False
+    await db.set_setting("usd_rate_alerted", "false")
 
 
 async def refresh_product_prices(bot=None) -> None:
@@ -69,6 +73,7 @@ async def refresh_product_prices(bot=None) -> None:
             await db.set_product_pricing(product["id"], auto_block_reason="SUPPLIER_UNAVAILABLE")
             continue
         try:
+            previous_reason = product.get("auto_block_reason", "")
             matrix = await LioGamesService.get_product_price(str(mapping["product_id"]))
             usd_cost = _find_variation_price(matrix, str(mapping["variation_id"]), LIOGAMES_PRICE_TIER)
             if not usd_cost or rate <= 0:
@@ -80,10 +85,12 @@ async def refresh_product_prices(bot=None) -> None:
                 cost_price=float(quote.cost_uzs), price=float(quote.sale_price),
                 auto_block_reason=quote.blocked_reason,
             )
-            if quote.blocked_reason and bot:
+            if quote.blocked_reason and quote.blocked_reason != previous_reason and bot:
                 await _alert_admins(bot, f"🔴 {product['name']} narxi max_price'dan oshdi; paket vaqtincha bloklandi.")
         except Exception as exc:
             logger.warning("Price refresh failed for product %s (%s); retaining stored price", product.get("id"), type(exc).__name__)
+            if product.get("auto_block_reason") != "SUPPLIER_UNAVAILABLE" and bot:
+                await _alert_admins(bot, f"⚠️ {product.get('name')} uchun LioGames narxi olinmadi; paket vaqtincha bloklandi.")
             await db.set_product_pricing(product["id"], auto_block_reason="SUPPLIER_UNAVAILABLE")
 
 
@@ -102,7 +109,7 @@ async def monitor_supplier(bot) -> None:
     while True:
         now = asyncio.get_running_loop().time()
         if now - last_rate >= USD_RATE_INTERVAL_HOURS * 3600:
-            await update_usd_rate()
+            await update_usd_rate(bot)
             last_rate = now
         if now - last_prices >= 300:
             await refresh_product_prices(bot)
@@ -112,7 +119,11 @@ async def monitor_supplier(bot) -> None:
                 balance = await LioGamesService.get_balance()
                 amount = float(balance.get("balance", balance.get("wallet_balance", 0)) or 0)
                 if amount < LOW_BALANCE_THRESHOLD:
-                    await _alert_admins(bot, f"⚠️ LioGames balans past: ${amount:.2f} (chegara ${LOW_BALANCE_THRESHOLD:.2f}).")
+                    if await db.get_setting("supplier_low_balance_alerted", "false") != "true":
+                        await _alert_admins(bot, f"⚠️ LioGames balans past: ${amount:.2f} (chegara ${LOW_BALANCE_THRESHOLD:.2f}).")
+                        await db.set_setting("supplier_low_balance_alerted", "true")
+                else:
+                    await db.set_setting("supplier_low_balance_alerted", "false")
             except Exception as exc:
                 logger.warning("LioGames balance check failed (%s)", type(exc).__name__)
             last_balance = now
