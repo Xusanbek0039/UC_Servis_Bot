@@ -23,6 +23,16 @@ from emojis import E
 router = Router()
 logger = logging.getLogger("handlers.payment")
 
+MANUAL_PAYMENT_METHODS = {
+    "VISA": ("Visa", "visa", "payment_visa"),
+    "HUMO": ("Humo", "humo", "payment_humo"),
+    "MASTERCARD": ("Mastercard", "mastercard", "payment_mastercard"),
+    "UZCARD": ("Uzcard", "uzcard", "payment_uzcard"),
+    "CLICK": ("Click", "click", "payment_click"),
+    "PAYME": ("Payme", "payme", "payment_payme"),
+    "PAYNET": ("Paynet", "paynet", "payment_paynet"),
+}
+
 
 @router.callback_query(OrderStates.WAITING_PAYMENT_METHOD, F.data.startswith("pay_method:"))
 async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bot):
@@ -117,22 +127,30 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
         await call.answer()
         return
 
-    # 3. Manual Card Payment
-    if method == "MANUAL_CARD":
-        card_num = await db.get_setting("card_number", "8600 0000 0000 1234")
+    # 3. Manual card and local payment providers
+    if method in MANUAL_PAYMENT_METHODS or method == "MANUAL_CARD":
+        if method == "MANUAL_CARD":
+            method = "UZCARD"
+        method_label, emoji_key, setting_key = MANUAL_PAYMENT_METHODS[method]
+        card_num = await db.get_setting(setting_key, "")
+        if not card_num and method == "UZCARD":
+            card_num = await db.get_setting("card_number", "")
+        if not card_num:
+            await call.answer(f"{method_label} to'lovi hali sozlanmagan. Administratorga murojaat qiling.", show_alert=True)
+            return
         card_owner = await db.get_setting("card_owner", "PUBG OPERATOR")
         bank_name = await db.get_setting("bank_name", "Kapitalbank")
 
-        await db.create_payment(order_id=order_id, amount=price, payment_method="MANUAL_CARD", payment_id=f"manual:{order_id}")
+        await db.create_payment(order_id=order_id, amount=price, payment_method=method, payment_id=f"manual:{method.lower()}:{order_id}")
         await state.set_state(OrderStates.WAITING_SCREENSHOT)
 
         text = (
             f"{DIVIDER}\n"
-            f"   {E('card')} <b>KARTA ORQALI TO'LOV</b>\n"
+            f"   {E(emoji_key)} <b>{method_label.upper()} ORQALI TO'LOV</b>\n"
             f"{DIVIDER}\n\n"
             f"{E('balance')} <b>To'lov summasi:</b>\n"
             f"👉 <b>{format_currency(price)}</b>\n\n"
-            f"{E('card')} <b>Karta raqami:</b>\n"
+            f"{E(emoji_key)} <b>To'lov rekviziti:</b>\n"
             f"<code>{card_num}</code> <i>(nusxalash uchun ustiga bosing)</i>\n\n"
             f"{E('profile')} <b>Karta egasi:</b> <b>{card_owner}</b>\n"
             f"🏦 <b>Bank:</b> {bank_name}\n"

@@ -112,6 +112,7 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     },
     "card": {
         "env_var": "EMOJI_CARD",
+        "default_id": "6323185173978416820",
         "fallback": "💳",
     },
     "link": {
