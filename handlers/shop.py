@@ -1,3 +1,4 @@
+from html import escape
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -52,8 +53,11 @@ async def process_player_id(message: Message, state: FSMContext):
         await message.answer(text, reply_markup=nav_back_home_keyboard("btn_home"))
         return
 
-    # In manual mode, skip supplier lookup and make the user aware the ID needs manual review.
-    if await db.get_pricing_mode() == "MANUAL":
+    pricing_mode = await db.get_pricing_mode()
+    manual_mode = pricing_mode == "MANUAL"
+
+    # Manual prices and fulfillment remain available without LioGames credentials.
+    if manual_mode and not LioGamesService.configured():
         await state.update_data(player_id=player_id, nickname="Qo'lda tekshiriladi", player_id_verified=False)
         text = (
             f"{DIVIDER}\n"
@@ -67,7 +71,8 @@ async def process_player_id(message: Message, state: FSMContext):
         await message.answer(text, reply_markup=player_confirm_keyboard())
         return
 
-    # Configuration/API errors are distinct from a genuine "player not found" result.
+    # Username lookup is separate from pricing and delivery: in manual mode too,
+    # show the real nickname when LioGames credentials are configured.
     if not LioGamesService.configured():
         await message.answer(
             f"{DIVIDER}\n"
@@ -84,6 +89,17 @@ async def process_player_id(message: Message, state: FSMContext):
 
     if not is_valid:
         is_not_found = err.startswith("LioGames bu Player ID")
+        if manual_mode and not is_not_found:
+            await state.update_data(player_id=player_id, nickname="Tekshirilmagan", player_id_verified=False)
+            await wait_msg.edit_text(
+                f"{DIVIDER}\n"
+                f"   {E('profile')} <b>PLAYER ID QABUL QILINDI</b>\n"
+                f"{DIVIDER}\n\n"
+                f"🆔 <b>Player ID:</b> <code>{player_id}</code>\n"
+                "⚠️ PUBG akkaunt nomini hozir tekshirib bo'lmadi. Operator buyurtmani qo'lda tekshiradi.",
+                reply_markup=player_confirm_keyboard(),
+            )
+            return
         title = "PLAYER TOPILMADI" if is_not_found else "PLAYER ID TEKSHIRILMADI"
         detail = (
             "Iltimos, Player ID'ni tekshirib qayta yuboring:"
@@ -108,7 +124,7 @@ async def process_player_id(message: Message, state: FSMContext):
         f"   {E('profile')} <b>PLAYER TASDIQLASH</b>\n"
         f"{DIVIDER}\n\n"
         f"{E('game')} <b>O'yin:</b> PUBG Mobile\n"
-        f"{E('profile')} <b>Nickname:</b> <b>{nickname}</b>\n"
+        f"{E('profile')} <b>Nickname:</b> <b>{escape(nickname)}</b>\n"
         f"🆔 <b>Player ID:</b> <code>{player_id}</code>\n"
         f"{SUB_DIVIDER}\n"
         f"{confirmation_note}"

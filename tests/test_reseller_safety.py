@@ -14,6 +14,7 @@ from services.price_monitor import update_usd_rate
 from services.backup import create_backup
 import database as database_module
 from handlers.start import idle_text_fallback
+from handlers.shop import process_player_id
 
 
 class PricingTests(unittest.TestCase):
@@ -221,6 +222,21 @@ class BackupTests(unittest.IsolatedAsyncioTestCase):
             await idle_text_fallback(message)
         message.answer.assert_awaited_once()
         self.assertIn("Player ID tekshiruvi", message.answer.await_args.args[0])
+
+
+class PlayerLookupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_manual_pricing_still_displays_real_pubg_nickname(self):
+        message = AsyncMock()
+        message.text = "5123456789"
+        state = AsyncMock()
+        wait_message = AsyncMock()
+        message.answer.return_value = wait_message
+        with patch("handlers.shop.db.get_pricing_mode", new=AsyncMock(return_value="MANUAL")), \
+             patch("handlers.shop.LioGamesService.configured", return_value=True), \
+             patch("handlers.shop.MidasbuyService.validate_player", new=AsyncMock(return_value=(True, "PlayerName", ""))):
+            await process_player_id(message, state)
+        self.assertIn("PlayerName", wait_message.edit_text.await_args.args[0])
+        state.update_data.assert_awaited_once_with(player_id="5123456789", nickname="PlayerName", player_id_verified=True)
 
 
 class MoreOrderStateTests(unittest.IsolatedAsyncioTestCase):
