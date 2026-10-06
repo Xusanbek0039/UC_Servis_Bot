@@ -48,10 +48,19 @@ LIOGAMES_KEY_ID = os.getenv("LIOGAMES_KEY_ID", "").strip()
 LIOGAMES_PUBG_PRODUCT_ID = os.getenv("LIOGAMES_PUBG_PRODUCT_ID", "").strip()
 LIOGAMES_VARIATIONS = os.getenv("LIOGAMES_VARIATIONS", "").strip()
 try:
-    LIOGAMES_PRODUCT_MAP = json.loads(LIOGAMES_VARIATIONS) if LIOGAMES_VARIATIONS else {}
+    LIOGAMES_PRODUCT_MAP = json.loads(LIOGAMES_VARIATIONS) if LIOGAMES_VARIATIONS else {
+        "60": {"product_id": 66719, "variation_id": 533766},
+        "325": {"product_id": 66719, "variation_id": 533768},
+        "660": {"product_id": 66719, "variation_id": 533770},
+        "1800": {"product_id": 66719, "variation_id": 533772},
+        "3850": {"product_id": 66719, "variation_id": 533774},
+        "8100": {"product_id": 66719, "variation_id": 533776},
+    }
 except json.JSONDecodeError:
     LIOGAMES_PRODUCT_MAP = {}
 LIOGAMES_PRICE_TIER = os.getenv("LIOGAMES_PRICE_TIER", "GOLD").strip().upper()
+DEFAULT_PROFIT_PERCENT = max(0, float(os.getenv("DEFAULT_PROFIT_PERCENT", "10")))
+DEFAULT_MAX_PRICE_BUFFER_PERCENT = max(0, float(os.getenv("DEFAULT_MAX_PRICE_BUFFER_PERCENT", "25")))
 LIOGAMES_AUTO_DELIVERY = os.getenv("LIOGAMES_AUTO_DELIVERY", "false").strip().lower() in ("1", "true", "yes")
 LIOGAMES_STATUS_INTERVAL = max(10, int(os.getenv("LIOGAMES_STATUS_INTERVAL", "20")))
 LIOGAMES_MAX_RETRIES = max(0, min(5, int(os.getenv("LIOGAMES_MAX_RETRIES", "3"))))

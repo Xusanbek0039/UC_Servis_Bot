@@ -4,7 +4,8 @@ from datetime import datetime, date, time, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ReturnDocument, ASCENDING, DESCENDING
 
-from config import MONGODB_URI, MONGODB_DB_NAME, DELIVERY_MODE, ORDER_PAYMENT_TTL_MINUTES
+from config import (MONGODB_URI, MONGODB_DB_NAME, DELIVERY_MODE, ORDER_PAYMENT_TTL_MINUTES,
+                    DEFAULT_PROFIT_PERCENT, DEFAULT_MAX_PRICE_BUFFER_PERCENT)
 
 import asyncio
 
@@ -93,8 +94,19 @@ async def init_db():
             upsert=True,
         )
     await db.settings.update_one({"key": "global_sales_enabled"}, {"$setOnInsert": {"value": "true"}}, upsert=True)
-    await db.products.update_many({"profit_percent": {"$exists": False}}, {"$set": {"profit_percent": 0.0}})
-    await db.products.update_many({"max_price": {"$exists": False}}, {"$set": {"max_price": 0.0}})
+    await db.products.update_many(
+        {"$or": [{"profit_percent": {"$exists": False}}, {"profit_percent": {"$lte": 0}}]},
+        {"$set": {"profit_percent": DEFAULT_PROFIT_PERCENT}},
+    )
+    # Give packages with no configured cap a 25% buffer above their last known cost.
+    # Existing nonzero admin-defined caps are preserved.
+    async for product in db.products.find({"$or": [{"max_price": {"$exists": False}}, {"max_price": {"$lte": 0}}]}):
+        cost = float(product.get("cost_price", 0) or 0)
+        if cost > 0:
+            cap = ((cost * (1 + DEFAULT_MAX_PRICE_BUFFER_PERCENT / 100) + 99) // 100) * 100
+            await db.products.update_one({"_id": product["_id"]}, {"$set": {"max_price": float(cap)}})
+        else:
+            await db.products.update_one({"_id": product["_id"]}, {"$set": {"max_price": 0.0}})
     await db.products.update_many({"manual_block": {"$exists": False}}, {"$set": {"manual_block": False}})
     await db.products.update_many({"auto_block_reason": {"$exists": False}}, {"$set": {"auto_block_reason": ""}})
     await db.products.update_many({"supplier_price_usd": {"$exists": False}}, {"$set": {"supplier_price_usd": 0.0}})
