@@ -1,0 +1,30 @@
+(function () {
+  'use strict';
+
+  // Front-end deterrent only. Real LioGames security is enforced server-side.
+  // Browsers cannot reliably prevent a user from opening developer tools.
+  var blockedKeys = function (event) {
+    var key = String(event.key || '').toLowerCase();
+    var ctrlOrMeta = event.ctrlKey || event.metaKey;
+    var shift = event.shiftKey;
+
+    var blocked = event.key === 'F12' ||
+      (ctrlOrMeta && shift && (key === 'i' || key === 'j' || key === 'c')) ||
+      (ctrlOrMeta && key === 'u');
+
+    if (!blocked) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+
+  document.addEventListener('keydown', blockedKeys, true);
+  document.addEventListener('contextmenu', function (event) {
+    // Keep native context menu in editable fields so ordinary copy/paste UX is not broken.
+    var el = event.target;
+    var editable = el && (el.matches && el.matches('input,textarea,[contenteditable="true"]'));
+    if (editable) return;
+    event.preventDefault();
+  }, true);
+
+  document.documentElement.setAttribute('data-liog-client-deterrent', 'enabled');
+})();

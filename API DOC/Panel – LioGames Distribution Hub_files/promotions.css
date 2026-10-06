@@ -1,0 +1,33 @@
+.liog-tab-panel--seller-discount{width:100%;max-width:100%}
+.liog-tab-panel--seller-discount .liog-promo-page{max-width:920px;margin:0 auto;padding:8px 0 28px;color:#eaf1ff}
+.liog-promo-card{
+  position:relative;overflow:hidden;
+  background:
+    radial-gradient(circle at 88% 8%,rgba(255,199,0,.12),transparent 34%),
+    linear-gradient(145deg,#0d1728 0%,#08111f 58%,#070c15 100%);
+  border:1px solid rgba(255,199,0,.25);border-radius:20px;padding:28px;
+  box-shadow:0 22px 60px rgba(0,0,0,.24);text-align:center;color:#eef5ff
+}
+.liog-promo-eyebrow{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#f4c500}
+.liog-promo-card h1{margin:8px 0 10px;font-size:32px;line-height:1.1;color:#fff}
+.liog-promo-lead{margin:0 auto 22px;max-width:620px;color:#aebbd0}
+.liog-promo-success,.liog-promo-info{margin:18px 0;padding:13px 15px;border-radius:14px;font-weight:850}
+.liog-promo-success{background:rgba(34,197,94,.10);color:#6ef0ae;border:1px solid rgba(34,197,94,.30)}
+.liog-promo-info{background:#111d31;color:#c5d1e4;border:1px solid rgba(148,163,184,.18)}
+.liog-promo-countdown{font-size:40px;font-weight:950;letter-spacing:.04em;color:#ffc800;font-variant-numeric:tabular-nums;margin:16px 0}
+.liog-promo-primary{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border:0;border-radius:12px;background:#ffc800;color:#080b12!important;font-weight:900;text-decoration:none!important;cursor:pointer;box-shadow:0 9px 24px rgba(255,199,0,.16)}
+.liog-promo-progress{height:10px;background:#17243a;border-radius:999px;overflow:hidden;margin:18px 0 8px}
+.liog-promo-progress span{display:block;height:100%;background:linear-gradient(90deg,#ffc800,#10b981)}
+.liog-promo-volume{font-size:14px;color:#9eb0ca}
+.liog-promo-fine{margin:22px 0 0;font-size:12px;line-height:1.55;color:#8798b1}
+.liog-promo-toast{margin-top:16px;color:#64efaf;font-weight:800}
+.liog-promo-account-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 20px;padding:14px 16px;border:1px solid rgba(255,199,0,.26);border-radius:14px;background:linear-gradient(90deg,rgba(255,199,0,.10),rgba(16,185,129,.07));color:inherit}
+.liog-promo-account-banner strong{display:block;font-size:14px;color:inherit}
+.liog-promo-account-banner span{display:block;margin-top:2px;font-size:11px;opacity:.74}
+.liog-promo-account-timer{flex:0 0 auto;font-size:17px;font-weight:950;font-variant-numeric:tabular-nums;color:#ffc800}
+@media(max-width:620px){
+ .liog-tab-panel--seller-discount .liog-promo-page{padding:0}
+ .liog-promo-card{padding:22px 16px;border-radius:16px}
+ .liog-promo-card h1{font-size:27px}.liog-promo-countdown{font-size:30px}
+ .liog-promo-account-banner{align-items:flex-start;flex-direction:column}.liog-promo-account-timer{font-size:16px}
+}

@@ -1,0 +1,733 @@
+/*
+Theme Name: LioGames Reseller Platform
+Template: storefront
+Version: 2.9.52
+Text Domain: liogames
+*/
+/*
+ * Add your own custom css below this text.
+ */
+.giftcard_tablink {
+    background-color: #555;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+/* Style the tab content */
+.giftcard_tabcontent {
+    display: none;
+}
+#tab1{
+    display: block;
+}
+
+#selling_gift_card_function .cst_recent_column {
+   
+    width: 229px;
+}
+
+#selling_gift_card_function .inner-purchases-second {
+    margin-top: -10px;
+    margin-left: 35px;
+}
+
+#selling_gift_card_function .cst_recent_column img {
+    width: auto;
+    height: 72px;
+    border-radius: 17px;
+}
+
+.giftcard_sell_form input, .giftcard_sell_form select ,.giftcard_sell_form  textarea {
+    border-radius: 7px;
+    padding: 6px;
+    width: 100%;
+    margin-top: 10px;
+    border: 1px solid black;
+    background-color: white;
+    margin-bottom: 10px;
+
+}
+
+
+.giftcard_sell_form  label {
+    font-weight: 500;
+    color: black;
+    font-size: 19px;
+}
+
+
+
+.cst_show_div_brand{
+    display: none;
+}
+
+@media only screen and (max-width: 768px) {
+a.manual-ajax {
+    margin: auto;
+    display: table !important;
+}
+.gift_card_section_custom_row .left,.gift_card_section_custom_row .right,.gift_card_section_custom_row .middle {
+  width: 100% !important;
+}
+.sell_gift_details_content {
+    width: 371px !important;
+}
+}
+
+
+
+.gift_card_section_custom_row .column {
+  float: left;
+  padding: 10px;
+  height: 300px; 
+  text-align: center;
+  background-color: white;
+}
+
+.gift_card_section_custom_row .left,.gift_card_section_custom_row .right,.gift_card_section_custom_row .middle {
+  height: 220px;
+    width: 32%;
+    margin: 6px;
+    box-shadow: 5px 5px 5px #888;
+    border-radius: 15px;
+
+}
+
+
+/* Clear floats after the columns */
+.gift_card_section_custom_row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+
+/*.gift_card_section_custom_row i:before {
+    font-size: 94px;
+    color: black;
+}
+*/
+.single.single-product .woocommerce-Tabs-panel.panel {
+   display:block !important;
+   margin-top: 28px !important ;
+    border-top: 0px solid #d3ced2  !important;
+    border-radius:20px  !important;
+}
+/*.single-product .product .single_variation .price bdi{
+
+    color: white;
+}*/
+/*.single-product input{
+    background: #22282a !important;
+    color: white !important;
+}*/
+/*.single-product .wcpa_wrap .wcpa_field {
+    background: #22282a !important;
+    color: white !important;
+}*/
+/*@media only screen and (min-width: 769px) {*/
+.single.single-product ul.tabs.wc-tabs {
+  display: none !important;
+}
+
+.single.single-product button.single_add_to_cart_button.button, button#sbw_wc-adding-button {
+    display: none !important;
+}
+@media only screen and (min-width: 769px) {
+.single.single-product .woocommerce-variation-add-to-cart.variations_button.woocommerce-variation-add-to-cart-disabled {
+    margin-top: -71px;
+}
+}
+@media only screen and (max-width: 768px) {
+body.single.single-product  .swatchly-swatch span.swatchly-text {
+    font-size: 11px !important;
+}
+
+body.single.single-product .cst_product_first_section .single_variation_wrap  .wcpa_wrap{
+    margin-top: -48px;
+}
+
+body.single.single-product #cst_product_second_section {
+    margin-top: -70px;
+}
+
+body.single.single-product  .col-full {
+    margin-left: 0;
+    margin-right: 0;
+}
+}
+.single.single-product .quantity .qty {
+    width: 200px;
+}
+
+
+.single.single-product  .yith-par-message.yith-par-message-product ,.single-product div.product form.cart .quantity ,.single-product div.yith-par-message-variation{
+    display: none !important;
+}
+/*.single.single-product label{
+
+    color:white;
+}*/
+/*.single.single-product .woocommerce-Tabs-panel.panel * {
+    color: white !important;
+}
+.single.single-product .woocommerce-Tabs-panel.panel {
+  background: #22282a !important;
+}
+
+.single.single-product li#tab-title-description a {
+ background: #22282a !important;
+         color: white !important;
+}*/
+.gift_card_section_custom_row .column  p {
+    background: linear-gradient(to right, #E91E1E 31%, #0093C9 61%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+}
+
+
+
+/*///*/
+/* Container */
+.giftcard_sell_form {
+       width: 74%;
+
+    margin: 0 auto;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Elements */
+.giftcard_sell_form label {
+    display: block;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.giftcard_sell_form select,
+.giftcard_sell_form input,
+.giftcard_sell_form textarea {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.giftcard_sell_form select {
+    cursor: pointer;
+}
+
+/* Additional Styles */
+.cst_show_div_brand {
+    display: none;
+}
+
+.cst_show_div_brand.show {
+    display: block;
+}
+
+.cst_validation_selling_price {
+    font-size: 12px;
+    display: block;
+    margin-top: 5px;
+    color: red;
+}
+
+/* Button */
+.giftcard_sell_form button {
+    width: 100%;
+    padding: 10px;
+    background-color: #0073e6;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.giftcard_sell_form button:hover {
+    background-color: #005bbf;
+}
+
+
+/*////asdasdasd*/
+
+/*.cst_recent_row {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.2s;
+}*/
+
+.cst_recent_row a {
+    display: flex;
+    text-decoration: none;
+}
+
+.cst_recent_column {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.inner-purchases img {
+    max-width: 100px;
+    max-height: 100px;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.inner-purchases-second {
+    text-align: left;
+    padding: 0 10px;
+}
+
+.inner-purchases-second h3 {
+    font-size: 17px;
+    color: black;
+    font-weight: 600;
+    margin-top: 11px;
+}
+
+.inner-purchases-second p {
+    margin: 0;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+}
+.elementor-element.elementor-element-3647ba9.elementor-widget.elementor-widget-html ,section.elementor-section.elementor-inner-section.elementor-element.elementor-element-6cd6e26.elementor-section-content-middle.elementor-section-boxed.elementor-section-height-default.elementor-section-height-default {
+    padding: var(--pd,1.333334em);
+    border-radius: 1em;
+    background: white;
+    cursor: pointer;
+    transition: .3s;
+    position: relative;
+    font-size: 16px;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.single-product div.product .woocommerce-product-gallery .woocommerce-product-gallery__trigger::before{
+    content: none;
+}
+
+.single-product div.product .woocommerce-product-gallery .woocommerce-product-gallery__trigger{
+    display: none;
+}
+
+ .woocommerce-product-details__short-description p svg{
+    color: red;
+    font-size: 9px;
+    width: 20px;
+    margin-bottom: -5px;
+}
+
+.elementor-column.elementor-col-66.elementor-top-column.elementor-element.elementor-element-a2462e0 .wcv-product-65871 {
+    display: none;
+}
+
+.elementor-element.elementor-element-fcb1a3c.elementor-widget.elementor-widget-woocommerce-product-short-description .woocommerce-product-details__short-description p {
+display: none;
+}
+
+
+
+
+			.elementor-element-1f7e979.elementor-widget.elementor-widget-woocommerce-product-short-description .woocommerce-product-details__short-description p {
+display: none;
+}
+.elementor-widget__width-auto.elementor-absolute  p {
+    margin: 0 !important;
+}
+.elementor-widget__width-auto.elementor-absolute{
+    margin-bottom: 10px !important;
+}
+#custom-id-checkout form.checkout.woocommerce-checkout {
+    padding: 26px;
+border-radius:10px;
+    background: white;
+}
+#custom-id-cart h1.entry-title {
+    display: none;
+}
+#custom-id-cart .wc-proceed-to-checkout .button.checkout-button {
+    font-size: 1.21575em;
+}
+#custom-id-checkout form.checkout.woocommerce-checkout .form-row input, .form-row textarea, .form-row select {
+    border-radius: 5px;
+}
+#custom-id-checkout table.shop_table.woocommerce-checkout-review-order-table {
+    border: 1px solid #dfdfdf;
+    border-radius: 5px;
+}
+h1 , h2 ,h3,h4 ,h5,h6,p,span,a,div{
+    font-family: 'Poppins';
+}
+.elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce-MyAccount-content {
+    float: left;
+}
+#custom-id-cart .woocommerce {
+    padding: 25px;
+}
+input#coupon_code {
+    border-radius: 10px;
+}
+.wpccl-btn-wrapper {
+    padding: 10px;
+}
+.wpccl-btn-wrapper a{
+    color: black;
+}
+#custom-id-my-account  .woocommerce-MyAccount-content-wrapper {
+    width: 100%;
+}
+.row.cst_product_grid-sec.grid-item .col-sm-4 {
+    text-align: left;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+}
+.row.cst_product_grid-sec.grid-item .col-sm-4:nth-child(1) {
+
+    justify-content: unset !Important;
+}
+.gtc-myaccount-redeem-gift-card-wrapper div {
+    margin: 11PX;
+}
+	 li.woocommerce-MyAccount-navigation-link.woocommerce-MyAccount-navigation-link--edit-address, li.woocommerce-MyAccount-navigation-link.woocommerce-MyAccount-navigation-link--downloads {
+    display: none !important;
+}
+p.gtc-redeem-gift-card-form-title,p.gtc-gift-card-available-balance-form-title {
+    font-size: 25px;
+    font-weight: 500;
+    font-family: 'Poppins';
+    color: black;
+}
+
+table.gtc-frontend-table.gtc-myaccount-active-gift-card-table th ,table.gtc-frontend-table.gtc-myaccount-activity-table th {
+    text-align: center !important;
+    padding: 13px !important;
+    font-family: 'Poppins';
+}
+.elementor-widget-woocommerce-my-account .e-my-account-tab:not(.e-my-account-tab__dashboard--custom) .woocommerce-MyAccount-content h2:first-of-type {
+    margin-top: 30px;
+}
+.elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce .woocommerce-MyAccount-navigation ul li.is-active a ,.elementor-widget-woocommerce-my-account .e-my-account-tab .woocommerce .woocommerce-MyAccount-navigation ul li a:hover {
+    color: #ffffff !Important;
+    background: linear-gradient(69deg,#FF0FB4 33%,#FFBA30 100%)  !Important;
+}
+li.woocommerce-MyAccount-navigation-link.woocommerce-MyAccount-navigation-link-- {
+display: none !important;
+}
+.woocommerce-breadcrumb a {
+    padding: .53em;
+    display: inline-block;
+    background: #d9d7d7;
+    padding-left: 1.2em;
+    position: relative;
+    font-weight: 700;
+    text-decoration: none;
+    margin-right: 2em;
+}
+.woocommerce-breadcrumb a:after {
+    width: 0;
+    height: 0;
+    border-top: 18px solid transparent;
+    border-bottom: 18px solid transparent;
+    border-left: 18px solid #d9d7d7;
+    content: "";
+    position: absolute;
+    right: -18px;
+    margin-top: -7px;
+}
+.woocommerce-breadcrumb {
+    font-weight: 700;
+    text-decoration: none;
+color: #43454b;
+}
+
+.woocommerce-breadcrumb .breadcrumb-separator::after {
+    display: none !important; 
+}
+span.onsale {
+    border: 0;
+    font-size: 25px;
+    text-align: center;
+    background: #f34418;
+    width: 56%;
+    margin-bottom: -1em;
+    color: #fff;
+}
+h1.product_title.entry-title {
+    margin-bottom: 0;
+    background: #fff;
+		width: 99%;
+    padding: 0.5em;
+    text-align: center;
+    border-radius: 10px;
+}
+
+div#page {
+    background-color: #eee;
+}
+header#masthead {
+    background-color: #ffff;
+}
+.woocommerce-product-rating {
+    display: none;
+}
+p.price {
+    display: none;
+}
+.crwcpn-notice, .crwcpn-notice.default {
+    background-color: unset  !important;
+    border: unset !important;
+    padding: unset  !important;
+    margin: unset  !important;
+}
+img.wp-smiley, img.emoji {
+    width: 15px !important;
+}
+.crwcpn-notice.crwcpn-product-notice.default h1 strong span {
+    color: #43454b !important;
+    font-size: 20px;
+    font-weight: 400;
+}
+.woocommerce-tabs ul.tabs li.active a, ul.products li.product .price, .onsale, .wc-block-grid__product-onsale, .widget_search form:before, .widget_product_search form:before {
+    color: #6d6d6d;
+}
+ul.tabs.wc-tabs li {
+    color: #044789 !important;
+}
+
+li#tab-title-additional_information a {
+   color: #044789;
+}
+li#tab-title-reviews a  {
+   color: #044789;
+}
+li#tab-title-description a{
+   color: #044789;
+}
+
+span.kind {
+    font-size: 16px;
+    font-weight: 500;
+    position: relative;
+    top: -33px;
+}
+span.swatchly-text {
+    color: #43454b;
+    box-sizing: border-box;
+    cursor: pointer;
+    display: flex;
+    background-color: #fff;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 30%);
+    padding: 2px;
+    margin: 3px 8px 4px 0px;
+    padding: 10px 48px 10px;
+    border-radius: 5px;
+}
+span.swatchly-text:hover {
+    box-shadow: 0 0 0 3px rgb(0 0 0 / 10%);
+}
+input#number-1660606525948 {
+    border-radius: 5px;
+    width: 482px;
+    line-height: 25px;
+    padding: 5px 15px;
+    border: 1px solid #aaa;
+    background: #fff;
+    box-shadow: none;
+    outline: 0;
+    box-sizing: border-box;
+}
+.fa-solid, .fas {
+    font-weight: 900;
+    margin-top: 4px;
+    margin-left: 4px;
+}
+.swatchly-type-wrap.swatchly-shape-type-squared.swatchly-type-label.swatchly- {
+    justify-content: start;
+    align-items: center;
+}
+
+.swatchly-swatch {
+    border: unset !important;
+width: 40%;
+}
+
+input#number-1660606525948 {
+    border-radius: 5px;
+}
+button.single_add_to_cart_button.button.alt.wcpa_even_binded.disabled.wc-variation-selection-needed {
+    width: 100%;
+    margin-top: 1rem;
+    background-color: #f2a800 !important;
+    border-radius: 5px;
+}
+button.single_add_to_cart_button.button.alt.wcpa_even_binded.disabled.wc-variation-selection-needed:hover{
+
+ background-color: #272d2d !important;
+}
+.page-id-64060 .storefront-breadcrumb {
+    display: none;
+}
+.page-id-64060  span.swiper-pagination-bullet.swiper-pagination-bullet-active {
+    background: white;
+}
+.page-id-64060  .swiper-container-horizontal>.swiper-pagination-bullets .swiper-pagination-bullet {
+    margin: 0 6px;
+    width: 50px;
+    border: none;
+    border-radius: 0px;
+}
+.quantity input, .quantity input:focus {
+border-radius: 5px;
+    background-color: #fff;
+    border: 1px solid #aaa;
+    box-shadow: none;
+    -webkit-box-shadow: none;
+    -moz-box-shadow: none;
+}
+.product_meta {
+    display: none;
+}
+li#tab-title-description {
+    border: unset;
+    border-radius: 5px;
+    padding-left: 33px;
+margin-right: -55px;
+font-weight: 700;
+}
+li#tab-title-additional_information{
+    border: unset;
+    border-radius: 5px;
+    padding-left: 33px;
+margin-right: -55px;
+font-weight: 700;
+}
+li#tab-title-reviews{
+    border: unset;
+    border-radius: 5px;
+    padding-left: 33px;
+margin-right: -55px;
+font-weight: 700;
+}
+div#tab-description {
+    background-color: #fff;
+    padding-left: 31px;
+    padding-top: 17px;
+}
+div#tab-additional_information {
+    background-color: #fff;
+    padding-left: 31px;
+    padding-top: 17px;
+}
+div#tab-reviews {
+    background-color: #fff;
+    padding-left: 31px;
+    padding-top: 17px;
+}
+.woocommerce-tabs ul.tabs li.active a {
+    background-color: #fff;
+border-radius: 15px;
+}
+.woocommerce-tabs ul.tabs li a {
+    padding: 1em 20px !important;
+}
+
+.yay-currency-single-page-switcher {
+    display: none;
+}
+.woocommerce-tabs ul.tabs {
+    border-top: unset !important;
+}
+a:focus, input:focus, textarea:focus, button:focus {
+    outline: unset !important;
+}
+input#submit {
+    color: white;
+}
+
+input#submit:hover {
+    background-color: #272d2d !important;
+    color: white;
+}
+.single-product .swatchly-swatch.swatchly-selected span.swatchly-text {
+    border: 2px solid #ffac33 !important;
+}
+.single-product .product .single_variation .price {
+    margin-bottom: 0em  !important;
+}
+.woocommerce-variation-price {
+    display: inline-block !important;
+    padding: 0.5em !important;
+    font-size: 1.5em !important;
+    text-align: center !important;
+    background-color: #fff !important;
+    border-radius: 10px !important;
+    width: 85% !important;
+}
+span.woocommerce-Price-amount.amount {
+    color: black;
+}
+.single-product section ul.products li.product .price, ul.products .wc-block-grid__product .price, .wc-block-grid__products li.product .price, .wc-block-grid__products .wc-block-grid__product .price {
+    margin-top: 15px;
+}
+.products li {
+background: #fff;
+    width: 16.9% !important;
+    margin-right: 3.8% !important;
+    margin: 10px !important;
+    padding: 10px !important;
+    border-radius: 15px !important;
+    box-shadow: 1px -1px 7px 2pxrgb(0 0 0/10%) !important;
+    -webkit-box-shadow: 1px -1px 7px 2px rgb(0 0 0 / 10%) !important;
+    -moz-box-shadow: 1px -1px 7px 2px rgb(0 0 0/10%) !important;
+}
+.related>ul {
+    display: flex;
+    justify-content: space-evenly;
+}
+.single-product .related.products  .star-rating {
+    display: none;
+}
+.single-product .related.products span.onsale {
+    display: none;
+}
+.single-product .related.products  span.price {
+    display: none !important;
+}
+.single-product .related.products  h2.woocommerce-loop-product__title {
+    font-size: 1rem;
+    color: black;
+    margin-bottom: 27px !important;
+}
+.single-product section.related.products li.product .button {
+    border-radius: 50px !important;
+    color: #fff !important;
+    background-color: #f2a800 !important;
+}
+.single-product section section.related.products li.product .button:hover {
+    background-color: #272d2d !important;
+}
+/* LioGames public-hub fallback image (no CMS/plugin placeholder URL). */
+.liog-product-card__media .liohub-image-placeholder{display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:145px;border-radius:12px;background:linear-gradient(145deg,#18233b,#0c1220);color:#a78bfa;font-weight:900;font-size:24px;letter-spacing:.08em}
+
+/* 2.9.35 seller-local order timestamps */
+.lio-timezone-note{display:block;margin-top:4px;color:#7f90a8;font-size:10px;line-height:1.3;overflow-wrap:anywhere}
+
+
+/* 2.9.36 H2H-only product discovery */
+.liohub-h2h-only{display:inline-flex;align-items:center;width:max-content;margin:5px 0 8px;padding:4px 9px;border-radius:999px;border:1px solid rgba(245,183,0,.35);background:rgba(245,183,0,.10);color:#ffe17a;font-size:10px;font-weight:800;letter-spacing:.08em}

@@ -1,0 +1,878 @@
+(function () {
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  function parseAmount(str) {
+    if (str == null) return 0;
+    var s = String(str).trim();
+    if (!s) return 0;
+    // normalize: remove spaces
+    s = s.replace(/\s+/g, '');
+    // if comma is decimal separator (rare), normalize to dot
+    if (s.indexOf(',') !== -1 && s.indexOf('.') === -1) s = s.replace(',', '.');
+    // remove thousands separators
+    s = s.replace(/,/g, '');
+    var n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function format2(n) {
+    try { return (Math.round(n * 100) / 100).toFixed(2); } catch (e) { return String(n); }
+  }
+
+  function isWholeUsdt(n) {
+    n = Number(n);
+    return isFinite(n) && Math.abs(n - Math.round(n)) < 0.000001;
+  }
+
+  function formatWholeUsdt(n) {
+    n = Number(n);
+    return isFinite(n) ? String(Math.round(n)) : String(n);
+  }
+
+  function formatExactUsdt(value) {
+    if (value == null || value === '') return '';
+    var n = Number(value);
+    if (!isFinite(n)) return String(value);
+    var s = n.toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
+    if (s.indexOf('.') === -1) return s + '.00';
+    if (s.split('.')[1].length === 1) return s + '0';
+    return s;
+  }
+
+  function openModal(modal) {
+    if (!modal) return;
+    modal.setAttribute('aria-hidden', 'false');
+    modal.classList.add('is-open');
+    document.documentElement.classList.add('liog-usdt-modal-open');
+  }
+
+  function closeAllModals() {
+    $all('[data-liog-usdt-modal="1"].is-open').forEach(function (m) {
+      closeModal(m);
+    });
+  }
+
+  function closeModal(modal) {
+    if (!modal) return;
+    modal.setAttribute('aria-hidden', 'true');
+    modal.classList.remove('is-open');
+    modal.classList.remove('is-auto-mode');
+    modal.classList.remove('is-direct-mode');
+    modal.classList.remove('is-payment-mode');
+    var card = modal.querySelector('.liog-usdt-modal-card');
+    if(card){
+      card.classList.remove('is-auto-invoice');
+      card.classList.remove('is-payment-sheet');
+    }
+    document.documentElement.classList.remove('liog-usdt-modal-open');
+  }
+
+  function initModalHandlers() {
+    // Works even if HTML uses anchor :target fallback
+    document.addEventListener('click', function (e) {
+      var openBtn = e.target.closest('[data-liog-usdt-open="1"]');
+      if (openBtn) {
+        // Ensure only one modal at a time
+        closeAllModals();
+        var href = openBtn.getAttribute('href') || '';
+        if (href && href.charAt(0) === '#') {
+          // Let :target work, but also apply class for accessibility
+          var modal = $(href);
+          if (modal) openModal(modal);
+          // allow hash change (do not prevent default)
+          return;
+        }
+        // Fallback: find modal inside same panel
+        var panel = openBtn.closest('[data-liog-usdt-panel="1"]');
+        var modal = panel ? $('[data-liog-usdt-modal="1"]', panel) : $('[data-liog-usdt-modal="1"]');
+        if (modal) {
+          e.preventDefault();
+          openModal(modal);
+        }
+        return;
+      }
+
+      var closeBtn = e.target.closest('[data-liog-usdt-close="1"]');
+      if (closeBtn) {
+        var modal = closeBtn.closest('[data-liog-usdt-modal="1"]');
+        if (modal) closeModal(modal);
+        // if using anchor close (#), allow default to clear :target
+        return;
+      }
+    });
+
+    window.addEventListener('hashchange', function () {
+      // If hash no longer points to a modal, close any open one
+      var open = $('[data-liog-usdt-modal="1"].is-open');
+      if (!open) return;
+      var id = (location.hash || '').slice(1);
+      if (!id || open.id !== id) closeModal(open);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        var open = $('[data-liog-usdt-modal="1"].is-open') || (location.hash ? $(location.hash) : null);
+        if (open) closeModal(open);
+      }
+    });
+  }
+
+  function initCopy() {
+    document.addEventListener('click', async function (e) {
+      var btn = e.target.closest('[data-copy]');
+      if (!btn) return;
+      var txt = btn.getAttribute('data-copy') || '';
+      if (!txt) return;
+      try {
+        await navigator.clipboard.writeText(txt);
+        var old = btn.textContent;
+        btn.textContent = (window.LiogUsdtDeposit && LiogUsdtDeposit.i18n && LiogUsdtDeposit.i18n.copied) ? LiogUsdtDeposit.i18n.copied : 'Copied';
+        setTimeout(function () { btn.textContent = old; }, 900);
+      } catch (err) {
+        // best-effort fallback
+        var ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e2) {}
+        document.body.removeChild(ta);
+      }
+    });
+  }
+
+  function initCheckoutFeeCalc() {
+    // Updates fee + total on checkout network dropdown (if present)
+    var sel = $('select[name="liog_usdt_network"]');
+    if (!sel) return;
+
+    var feeEl = $('[data-liog-usdt-fee]');
+    var totEl = $('[data-liog-usdt-total]');
+    // Base amount = cart total
+    var base = 0;
+    var baseEl = $('[data-liog-usdt-base]');
+    if (baseEl) {
+      base = parseAmount(baseEl.getAttribute('data-base') || baseEl.textContent);
+    }
+    var cartTotalEl = $('[data-liog-usdt-cart-total]');
+    if (cartTotalEl) {
+      base = parseAmount(cartTotalEl.value || cartTotalEl.getAttribute('value') || cartTotalEl.getAttribute('data-value') || '0');
+    }
+
+    function update() {
+      var opt = sel.options[sel.selectedIndex];
+      var fee = opt ? parseAmount(opt.getAttribute('data-fee') || '0') : 0;
+      if (feeEl) feeEl.textContent = format2(fee);
+      if (totEl) totEl.textContent = format2(base + fee);
+    }
+
+    sel.addEventListener('change', update);
+    update();
+  }
+
+  function initProofSubmit() {
+    $all('[data-liog-usdt-proof-form="1"]').forEach(function (form) {
+      form.addEventListener('submit', async function (e) {
+        // If ajax URL isn't available, let normal POST happen
+        var ajaxUrl = (window.LIOG_USDT && LIOG_USDT.ajax_url) ? LIOG_USDT.ajax_url : '';
+        if (!ajaxUrl) return;
+
+        e.preventDefault();
+
+        var msg = $('[data-liog-usdt-msg="1"]', form);
+        if (msg) { msg.textContent = ''; msg.className = 'liog-usdt-form-msg'; }
+
+        var fd = new FormData(form);
+        fd.append('action', 'liog_usdt_submit_proof');
+        if (!fd.get('nonce') && window.LIOG_USDT && LIOG_USDT.nonce) fd.append('nonce', LIOG_USDT.nonce);
+
+        var btn = $('button[type="submit"]', form);
+        if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+
+        try {
+          var res = await fetch(ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' });
+          var json = await res.json().catch(function () { return null; });
+
+          if (!res.ok || !json || json.success === false) {
+            var err = (json && json.data && (json.data.message || json.data.code)) || 'Failed to submit proof';
+            if (msg) { msg.textContent = err; msg.classList.add('is-error'); }
+            if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
+            return;
+          }
+
+          if (msg) { msg.textContent = (json.data && json.data.message) ? json.data.message : 'Submitted'; msg.classList.add('is-ok'); }
+
+          // Refresh page after a short delay so status/timer updates server-side
+          setTimeout(function () { window.location.reload(); }, 800);
+        } catch (err2) {
+          if (msg) { msg.textContent = 'Network error. Please try again.'; msg.classList.add('is-error'); }
+          if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
+        }
+      });
+    });
+  }
+
+  function initTimers() {
+    $all('[data-liog-usdt-timer="1"]').forEach(function (el) {
+      var submittedAt = parseInt(el.getAttribute('data-submitted-at') || '0', 10);
+      var reviewMin = parseInt(el.getAttribute('data-review-min') || '15', 10);
+      if (!submittedAt) return;
+
+      function tick() {
+        var end = submittedAt * 1000 + reviewMin * 60 * 1000;
+        var now = Date.now();
+        var diff = end - now;
+        if (diff <= 0) {
+          el.textContent = 'Verification in progress…';
+          return;
+        }
+        var s = Math.floor(diff / 1000);
+        var mm = String(Math.floor(s / 60)).padStart(2, '0');
+        var ss = String(s % 60).padStart(2, '0');
+        el.textContent = 'Estimated review time: ' + mm + ':' + ss;
+        setTimeout(tick, 1000);
+      }
+      tick();
+    });
+  }
+
+  function initAutoOpenPaymentPopup() {
+    // Auto-open payment popup after checkout (order-pay or order-received)
+    var modal = $('[data-liog-usdt-auto-open="1"]');
+    if (!modal) return;
+    var id = modal.getAttribute('id') || '';
+    var orderId = modal.getAttribute('data-order-id') || '';
+
+    var key = 'liog_usdt_opened_' + (orderId || id);
+    try {
+      if (window.sessionStorage && sessionStorage.getItem(key)) return;
+      if (window.sessionStorage) sessionStorage.setItem(key, '1');
+    } catch (e) {}
+
+    openModal(modal);
+  }
+
+  
+  // -------------------------
+  // Deposit Requests (My Account -> USDT Deposit)
+  // -------------------------
+  function initDepositRequests() {
+    if (!window.LiogUsdtDeposit) return;
+
+    var DepCfg = window.LiogUsdtDeposit || {};
+    var DepI18n = DepCfg.i18n || {};
+    function tr(key, fallback, vars){
+      var text = (DepI18n && DepI18n[key]) ? String(DepI18n[key]) : String(fallback || key || '');
+      vars = vars || {};
+      Object.keys(vars).forEach(function(name){ text = text.split('{'+name+'}').join(String(vars[name])); });
+      return text;
+    }
+    var depCreateBtn = document.getElementById('liog-usdt-create');
+    var depAmountEl  = document.getElementById('liog-usdt-amount');
+    var depNetworkEl = document.getElementById('liog-usdt-network');
+    var depMsgEl     = document.getElementById('liog-usdt-msg');
+
+    var depModal = document.getElementById('liog-usdt-modal'); // payment modal element
+    var depTimerInt = null;
+    var depStatusPollInt = null;
+    var depMsgTimer = null;
+    var currentDep = null;
+    var depCreating = false;
+
+    function depIsBinancePay(dep){ return false; }
+    function depIsAuto(dep){
+      return !!(dep && (parseInt(dep.auto_verify || 0, 10) === 1 || String(dep.network_key || '').indexOf('AUTO_') === 0));
+    }
+    function depIsDirect(dep){
+      return !!(dep && parseInt(dep.direct_wallet || 0, 10) === 1);
+    }
+    function depIsPaymentMode(dep){
+      return depIsAuto(dep) || depIsDirect(dep);
+    }
+
+    function depSelectedMethodMin(){
+      var min = parseAmount(DepCfg.minAmount || 0);
+      if(!depNetworkEl) return min;
+      var opt = depNetworkEl.options && depNetworkEl.selectedIndex >= 0 ? depNetworkEl.options[depNetworkEl.selectedIndex] : null;
+      var m = opt ? parseAmount(opt.getAttribute('data-min-amount') || '0') : 0;
+      return m > 0 ? m : min;
+    }
+
+    function depClearMethodSelection(){
+      document.querySelectorAll('[data-liog-usdt-network-card].is-selected').forEach(function(card){
+        card.classList.remove('is-selected');
+        card.setAttribute('aria-pressed','false');
+      });
+      if(depNetworkEl) depNetworkEl.value = '';
+    }
+
+    function depSelectedMethodCard(){
+      return document.querySelector('[data-liog-usdt-network-card].is-selected');
+    }
+
+    function depUpdateRouteUI(){
+      var amount = parseAmount(depAmountEl ? depAmountEl.value : '0');
+      var autoEnabled = parseInt(DepCfg.autoEnabled || 0, 10) === 1;
+      var autoMin = parseAmount(DepCfg.autoMin || 3);
+      var autoMax = parseAmount(DepCfg.autoMax || 5000);
+      var autoSection = document.getElementById('liog-usdt-auto-methods');
+      var manualSection = document.getElementById('liog-usdt-manual-methods');
+      var help = document.getElementById('liog-usdt-route-help');
+      var hint = document.getElementById('liog-usdt-method-hint');
+      var useManual = !autoEnabled || (amount > autoMax && amount > 0);
+
+      if(autoSection) autoSection.style.display = useManual ? 'none' : '';
+      if(manualSection) manualSection.style.display = useManual ? '' : 'none';
+      if(help && autoEnabled){
+        if(amount > 0 && amount < autoMin){
+          help.textContent = tr('min_auto_amount','Minimum top-up amount is {min} USDT.', {min:format2(autoMin)});
+        }else if(amount > 0 && amount <= autoMax){
+          help.textContent = tr('auto_deposit_help','Minimum deposit: {min} USDT.', {min:format2(autoMin)});
+        }else if(amount > autoMax){
+          help.textContent = tr('select_method','Please select a payment network.');
+        }else{
+          help.textContent = tr('auto_deposit_help','Minimum deposit: {min} USDT.', {min:format2(autoMin)});
+        }
+      }
+
+      var selected = depSelectedMethodCard();
+      if(selected){
+        var route = String(selected.getAttribute('data-route') || '');
+        if(route !== 'direct' && ((useManual && route !== 'manual') || (!useManual && route !== 'auto'))){
+          depClearMethodSelection();
+          selected = null;
+        }
+      }
+      if(hint && !selected) hint.textContent = tr('select_network','Select a network to continue.');
+    }
+
+    function depStopStatusPoll(){
+      if(depStatusPollInt){ clearInterval(depStatusPollInt); depStatusPollInt = null; }
+    }
+
+    function depPollStatus(dep){
+      if(!dep || !dep.id || !depIsPaymentMode(dep) || String(dep.status || '') !== 'waiting') return;
+      var fd = new FormData();
+      fd.append('action', 'liog_usdt_poll_deposit_status');
+      fd.append('nonce', DepCfg.nonce || '');
+      fd.append('deposit_id', dep.id);
+      fetch(DepCfg.ajaxUrl || '', {method:'POST', credentials:'same-origin', body:fd})
+        .then(function(r){ return r.json().catch(function(){ return null; }); })
+        .then(function(json){
+          if(!json || !json.success || !json.data || !json.data.deposit) return;
+          var updated = json.data.deposit;
+          currentDep = updated;
+          var balanceEl = document.getElementById('liog-wallet-balance-value');
+          if(balanceEl && json.data.balance_html) balanceEl.innerHTML = json.data.balance_html;
+          if(String(updated.status || '') !== 'waiting'){
+            depStopStatusPoll();
+            depOpen(updated);
+            if(String(updated.status || '') === 'approved') depSetMsg(tr('payment_confirmed','Payment confirmed. Wallet balance credited.'), 'success');
+          }
+        })
+        .catch(function(){});
+    }
+
+    function depStartStatusPoll(dep){
+      depStopStatusPoll();
+      if(!depIsPaymentMode(dep) || String(dep.status || '') !== 'waiting') return;
+      setTimeout(function(){ depPollStatus(dep); }, 4000);
+      depStatusPollInt = setInterval(function(){ depPollStatus(currentDep || dep); }, 15000);
+    }
+
+    function escHtml(str){
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function depSetMsg(msg, type){
+      if(!depMsgEl) return;
+      if(depMsgTimer){ clearTimeout(depMsgTimer); depMsgTimer=null; }
+      depMsgEl.classList.remove('is-toast');
+      if(!msg){ depMsgEl.innerHTML=''; return; }
+      var cls = type === 'success' ? 'woocommerce-message' : (type === 'info' ? 'woocommerce-info' : 'woocommerce-error');
+      depMsgEl.innerHTML = '<div class="'+cls+'" style="margin:0; padding:10px 12px;">'+escHtml(msg)+'</div>';
+      if(type==='success'){
+        depMsgEl.classList.add('is-toast');
+        depMsgTimer=setTimeout(function(){depMsgEl.innerHTML='';depMsgEl.classList.remove('is-toast');depMsgTimer=null;},3500);
+      }
+    }
+
+    function depSetProofEnabled(enabled){
+      var tx  = document.getElementById('liog-usdt-txhash');
+      var sc  = document.getElementById('liog-usdt-screenshot');
+      var btn = document.getElementById('liog-usdt-submit');
+      if(tx) tx.disabled = !enabled;
+      if(sc) sc.disabled = !enabled;
+      if(btn) btn.disabled = !enabled;
+    }
+
+    function depEl(id){ return document.getElementById(id); }
+
+    function depOpen(dep){
+      if(!depModal) return;
+      currentDep = dep || null;
+      try{
+        if(dep && depIsAuto(dep) && String(dep.status||'')==='waiting') localStorage.setItem('liog_usdt_pending_id',String(dep.id||''));
+        else if(dep && String(dep.status||'')!=='waiting') localStorage.removeItem('liog_usdt_pending_id');
+      }catch(e){}
+
+      var netLabel = (dep && (dep.network_label || dep.network)) ? (dep.network_label || dep.network) : (dep && dep.network_key ? dep.network_key : '');
+      var isBinance = depIsBinancePay(dep);
+      var isAuto = depIsAuto(dep);
+      var isDirect = depIsDirect(dep);
+      var amountNum = (dep && dep.amount != null) ? parseAmount(dep.amount) : (dep && dep.amount_text ? parseAmount(dep.amount_text) : 0);
+      var payNum = (dep && dep.pay_amount != null) ? parseAmount(dep.pay_amount) : (dep && dep.pay_amount_text ? parseAmount(dep.pay_amount_text) : 0);
+      var amount = isDirect ? String(dep.credit_amount_text || format2(amountNum)) : (isAuto ? formatWholeUsdt(amountNum) : (amountNum ? format2(amountNum) : ''));
+      var fee = (dep && dep.fee != null) ? format2(parseFloat(dep.fee)) : '';
+      var autoPayNum = payNum || amountNum;
+      var autoRoundInvoice = isAuto && isWholeUsdt(autoPayNum) && Math.abs(autoPayNum - amountNum) < 0.000001;
+      var pay = isAuto ? (autoRoundInvoice ? formatWholeUsdt(autoPayNum) : formatExactUsdt(autoPayNum)) : ((dep && dep.pay_amount_text) ? String(dep.pay_amount_text) : (payNum ? formatExactUsdt(payNum) : ''));
+      var addr = (dep && dep.address) ? String(dep.address) : '';
+      var st = dep && dep.status ? String(dep.status) : 'waiting';
+      var isPayment = isAuto || isDirect;
+      depModal.classList.toggle('is-auto-mode', isAuto);
+      depModal.classList.toggle('is-direct-mode', isDirect);
+      depModal.classList.toggle('is-payment-mode', isPayment);
+      var modalCard = depModal.querySelector('.liog-usdt-modal-card');
+      if(modalCard){
+        modalCard.classList.toggle('is-auto-invoice', isAuto);
+        modalCard.classList.toggle('is-payment-sheet', isPayment);
+      }
+
+      if(depEl('liog-usdt-modal-title')) depEl('liog-usdt-modal-title').textContent = tr('modal_title','USDT Deposit');
+      var sub = document.querySelector('.liog-usdt-paymodal__subtitle');
+      if(sub) sub.textContent = isPayment ? tr('modal_sub_auto','Send the exact amount using the payment details below.') : tr('modal_sub_manual','Complete payment within the timer below.');
+
+      if(depEl('liog-usdt-net')) depEl('liog-usdt-net').textContent = netLabel;
+      if(depEl('liog-usdt-net-2')) depEl('liog-usdt-net-2').textContent = netLabel;
+      var thresholdText = depEl('liog-usdt-threshold-text');
+      if(thresholdText) thresholdText.textContent = isPayment ? tr('selected_network_only','Send USDT only using the selected network.') : tr('safety_text','Verify token, network, address and amount before sending.');
+      var autoCreditText = depEl('liog-usdt-auto-credit-text');
+      if(autoCreditText) autoCreditText.textContent = isPayment ? tr('auto_credit_text','Your wallet is credited after the payment is confirmed.') : tr('submit_proof_help','After submission, the payment will be reviewed.');
+      if(depEl('liog-usdt-amt')) depEl('liog-usdt-amt').textContent = amount;
+      if(depEl('liog-usdt-fee')) depEl('liog-usdt-fee').textContent = fee || '0.00';
+      if(depEl('liog-usdt-pay')) depEl('liog-usdt-pay').textContent = pay;
+      if(depEl('liog-usdt-pay-2')) depEl('liog-usdt-pay-2').textContent = pay;
+      if(depEl('liog-usdt-address')) depEl('liog-usdt-address').textContent = addr;
+      if(depEl('liog-usdt-deposit-id')) depEl('liog-usdt-deposit-id').value = dep.id || '';
+      if(depEl('liog-usdt-summary-id')){ var publicInvoice = dep && dep.invoice_no ? String(dep.invoice_no) : (dep && dep.id ? String(dep.id) : ''); depEl('liog-usdt-summary-id').textContent = publicInvoice ? ('LGD-' + publicInvoice) : '—'; }
+
+      var addrLabel = depEl('liog-usdt-address-label');
+      if(addrLabel) addrLabel.textContent = isBinance ? 'Binance Pay ID' : tr('deposit_address','Payment Address');
+
+      var copyBtn = depEl('liog-usdt-copy-address');
+      if(copyBtn){ copyBtn.setAttribute('data-copy', addr || ''); copyBtn.textContent = tr('copy','Copy'); }
+      var copyAmountBtn = depEl('liog-usdt-copy-amount');
+      if(copyAmountBtn){ copyAmountBtn.setAttribute('data-copy', pay || ''); copyAmountBtn.textContent = tr('copy_amount','Copy amount'); }
+
+      var memoRow = depEl('liog-usdt-memo-row');
+      var memoEl = depEl('liog-usdt-memo');
+      var memoCopy = depEl('liog-usdt-copy-memo');
+      if(dep && dep.memo){
+        if(memoRow) memoRow.style.display = 'grid';
+        if(memoEl) memoEl.textContent = String(dep.memo);
+        if(memoCopy){ memoCopy.setAttribute('data-copy',String(dep.memo)); memoCopy.textContent=tr('copy','Copy'); }
+      }else if(memoRow){ memoRow.style.display = 'none'; }
+
+      var qrImg = depEl('liog-usdt-qr-img');
+      var qrUrl = (dep && dep.qr_url) ? String(dep.qr_url) : '';
+      if(!qrUrl && addr){ qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(addr); }
+      if(qrImg){ qrImg.src = qrUrl; qrImg.style.display = qrUrl ? 'block' : 'none'; }
+
+      var exactWarn = depEl('liog-usdt-exact-warning');
+      var exactWarnText = depEl('liog-usdt-exact-warning-text');
+      var senderReminder = depEl('liog-usdt-sender-reminder');
+      if(exactWarn){
+        if(isDirect){
+          exactWarn.style.display = '';
+          if(exactWarnText) exactWarnText.textContent = 'Send exactly ' + pay + ' USDT. Do not round, shorten or change this amount. After blockchain verification, ' + amount + ' USD will be credited to your wallet.';
+          if(senderReminder){
+            var expectedSender = dep && dep.expected_sender ? String(dep.expected_sender) : '';
+            senderReminder.textContent = expectedSender ? ('Payment source reminder: ' + expectedSender + '. Testing mode currently allows a different on-chain sender when every other verification check passes.') : '';
+          }
+        }else{
+          exactWarn.style.display = 'none';
+          if(exactWarnText) exactWarnText.textContent = '';
+          if(senderReminder) senderReminder.textContent = '';
+        }
+      }
+
+      var warnEl = depEl('liog-usdt-network-warning');
+      if(warnEl){
+        if(netLabel){
+          warnEl.textContent = tr('wrong_network_warning','Use only {network}. Using the wrong network, token or amount may delay or prevent wallet credit.',{network:netLabel}) + ' ' + tr('expired_warning','Do not send funds after the timer expires. Create a new invoice first.');
+          warnEl.style.display = '';
+        } else { warnEl.textContent = ''; }
+      }
+
+      var stepsEl = depEl('liog-usdt-steps');
+      if(stepsEl){
+        if(isPayment){
+          stepsEl.style.display = 'none';
+          stepsEl.innerHTML = '';
+        }else{
+          stepsEl.style.display = 'block';
+          stepsEl.innerHTML = '<ol><li>' + escHtml(tr('send_exact_amount','SEND THIS EXACT AMOUNT')) + ': <strong>'+escHtml(pay)+' USDT</strong>.</li><li>' + escHtml(tr('already_paid','I have already paid')) + ' → ' + escHtml(tr('submit_proof','Submit Proof')) + '.</li></ol>';
+        }
+      }
+
+      var noteEl = depEl('liog-usdt-note');
+      var noteHtml = '';
+      if(isDirect && dep.payment_note){ noteHtml += '<div class="liog-usdt-paymodal__note-text">'+escHtml(dep.payment_note)+'</div>'; }
+      if(isDirect){ noteHtml += '<div class="liog-usdt-paymodal__note-text">Wallet credit: '+escHtml(amount)+' USD</div>'; }
+      function line(label, value){ if(!value) return ''; return '<div class="liog-usdt-paymodal__note-row"><span>'+escHtml(label)+'</span><strong>'+escHtml(value)+'</strong></div>'; }
+      var statusKey = 'status_' + st;
+      var statusFallback = st ? st.charAt(0).toUpperCase()+st.slice(1) : '';
+      if(st && st !== 'waiting') noteHtml += '<div class="liog-usdt-paymodal__note-title">'+escHtml(tr('status','Status'))+': '+escHtml(tr(statusKey,statusFallback))+'</div>';
+      if(st === 'reviewing') noteHtml += '<div class="liog-usdt-paymodal__note-text">'+escHtml(tr('reviewing_text','Your payment proof has been submitted. Our team is reviewing it.'))+'</div>';
+      else if(st === 'approved') noteHtml += '<div class="liog-usdt-paymodal__note-text">'+escHtml(tr('approved_text','Approved. Your wallet has been credited after verification.'))+'</div>';
+      else if(st === 'rejected') noteHtml += '<div class="liog-usdt-paymodal__note-text">'+escHtml(tr('rejected_text','Rejected. {reason}',{reason:dep.admin_note||''}))+'</div>';
+      else if(st === 'expired') noteHtml += '<div class="liog-usdt-paymodal__note-text">'+escHtml(tr('expired_text','This deposit request is expired. Please create a new one.'))+'</div>';
+      if(dep && dep.memo) noteHtml += line(tr('memo_tag','Memo / Tag'),String(dep.memo));
+      if(dep && dep.tx_hash) noteHtml += line(isBinance?'Binance Pay Order ID':tr('transaction_hash','Transaction Hash'),String(dep.tx_hash));
+      if(dep && dep.screenshot_url) noteHtml += '<div class="liog-usdt-paymodal__note-link"><a href="'+escHtml(String(dep.screenshot_url))+'" target="_blank" rel="noopener">'+escHtml(tr('view_screenshot','View uploaded screenshot'))+'</a></div>';
+      if(noteEl){ if(noteHtml){ noteEl.innerHTML=noteHtml; noteEl.style.display='block'; } else { noteEl.style.display='none'; noteEl.innerHTML=''; } }
+
+      var statusEl = depEl('liog-usdt-modal-status');
+      if(statusEl){
+        var statusText = st === 'waiting' ? tr('waiting_for_payment','Waiting for Payment') : (st === 'reviewing' ? tr('under_review','Under review') : tr(statusKey,statusFallback));
+        statusEl.innerHTML = '<span></span>'+escHtml(statusText);
+        statusEl.className = 'liog-usdt-invoice-status is-'+String(st||'waiting').replace(/[^a-z0-9_-]/gi,'');
+      }
+
+      var proofWrap = depEl('liog-usdt-proof-wrap');
+      var iPaidBtn = depEl('liog-usdt-i-paid');
+      if(depEl('liog-usdt-txhash')){ depEl('liog-usdt-txhash').value=''; depEl('liog-usdt-txhash').placeholder=isBinance?'Paste Binance Pay Order ID':tr('paste_tx_hash','Paste TX hash'); }
+      if(depEl('liog-usdt-txhash-label')) depEl('liog-usdt-txhash-label').textContent=isBinance?'Binance Pay Order ID':tr('transaction_hash','Transaction Hash');
+      if(depEl('liog-usdt-screenshot')) depEl('liog-usdt-screenshot').value='';
+      if(depEl('liog-usdt-screenshot-label')){ depEl('liog-usdt-screenshot-label').style.display=isBinance?'none':'block'; depEl('liog-usdt-screenshot-label').textContent=tr('payment_screenshot','Payment Screenshot'); }
+      if(depEl('liog-usdt-screenshot')) depEl('liog-usdt-screenshot').style.display=isBinance?'none':'block';
+      if(depEl('liog-usdt-submit')) depEl('liog-usdt-submit').textContent=isBinance?'Verify Payment':tr('submit_proof','Submit Proof');
+      if(depEl('liog-usdt-proof-help')) depEl('liog-usdt-proof-help').textContent=tr('submit_proof_help','After submit, status will change to Reviewing. Approved deposits are credited to your wallet.');
+      if(depEl('liog-usdt-proof-msg')) depEl('liog-usdt-proof-msg').innerHTML='';
+      if(proofWrap) proofWrap.style.display='none';
+      depSetProofEnabled(false);
+      if(iPaidBtn){
+        if(st === 'waiting'){
+          iPaidBtn.style.display='inline-flex';
+          iPaidBtn.textContent=tr('already_paid','I have already paid');
+          iPaidBtn.disabled=false;
+        } else {
+          iPaidBtn.style.display='none';
+          iPaidBtn.disabled=true;
+        }
+      }
+
+      var compactSummary = document.querySelector('.liog-usdt-summary-compact');
+      if(compactSummary) compactSummary.style.display = (!isPayment && parseAmount(fee)>0) ? 'grid' : 'none';
+
+      if(depTimerInt){ clearInterval(depTimerInt); depTimerInt=null; }
+      var timerEl = depEl('liog-usdt-timer');
+      var expTs=0; try{ expTs=dep&&dep.expires_ts?parseInt(dep.expires_ts,10):0; }catch(e){ expTs=0; }
+      var serverOffset = dep && Number(dep.server_ts) > 0 ? Number(dep.server_ts)*1000-Date.now() : 0;
+      var setTimer=function(){
+        if(!timerEl) return;
+        if(st!=='waiting'){ timerEl.textContent=st==='reviewing'?tr('under_review','Under review'):'—'; return; }
+        if(!expTs){ timerEl.textContent='—'; return; }
+        var diff=(expTs*1000)-(Date.now()+serverOffset);
+        if(diff<=0){ timerEl.textContent=tr('status_expired','Expired'); if(iPaidBtn) iPaidBtn.disabled=true; depSetProofEnabled(false); if(statusEl){statusEl.innerHTML='<span></span>'+escHtml(tr('status_expired','Expired'));statusEl.className='liog-usdt-invoice-status is-expired';} return; }
+        var sec=Math.floor(diff/1000),m=Math.floor(sec/60),r=sec%60; timerEl.textContent=String(m)+':'+(r<10?'0'+r:String(r));
+      };
+      setTimer(); if(st==='waiting'&&expTs) depTimerInt=setInterval(setTimer,1000);
+
+      openModal(depModal);
+      if(isPayment && st==='waiting') depStartStatusPoll(dep); else if(st!=='waiting') depStopStatusPoll();
+    }
+
+    function depParseRow(tr){
+      try{
+        var raw = tr.getAttribute('data-deposit');
+        if(!raw) return null;
+        return JSON.parse(raw);
+      }catch(e){
+        return null;
+      }
+    }
+
+    
+    // I have already paid:
+    // provider/direct invoices perform an immediate safe status check;
+    // manual invoices keep the existing proof form.
+    var iPaidBtn = depEl('liog-usdt-i-paid');
+    if(iPaidBtn){
+      iPaidBtn.addEventListener('click', function(){
+        if(!currentDep || String(currentDep.status||'') !== 'waiting') return;
+
+        if(depIsPaymentMode(currentDep)){
+          iPaidBtn.disabled = true;
+          iPaidBtn.textContent = 'Checking payment…';
+          depSetMsg('Checking payment status…', 'info');
+          depPollStatus(currentDep);
+          window.setTimeout(function(){
+            if(currentDep && String(currentDep.status||'') === 'waiting'){
+              iPaidBtn.disabled = false;
+              iPaidBtn.textContent = tr('already_paid','I have already paid');
+            }
+          }, 2500);
+          return;
+        }
+
+        var proofWrap = depEl('liog-usdt-proof-wrap');
+        if(proofWrap){
+          proofWrap.style.display = 'block';
+          depSetProofEnabled(true);
+          try{ proofWrap.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){ proofWrap.scrollIntoView(); }
+        }
+      });
+    }
+
+
+    if(depAmountEl){
+      var syncQuick=function(){var v=String(depAmountEl.value||'').trim();document.querySelectorAll('[data-liog-usdt-quick]').forEach(function(x){x.classList.toggle('is-selected',String(x.getAttribute('data-liog-usdt-quick')||'')===v);});depUpdateRouteUI();};
+      depAmountEl.addEventListener('input', syncQuick);
+      depAmountEl.addEventListener('change', syncQuick);
+    }
+    document.addEventListener('click', function(e){
+      var q = e.target.closest('[data-liog-usdt-quick]');
+      if(!q || !depAmountEl) return;
+      e.preventDefault();
+      depAmountEl.value = q.getAttribute('data-liog-usdt-quick') || '';
+      document.querySelectorAll('[data-liog-usdt-quick]').forEach(function(x){x.classList.toggle('is-selected',x===q);});
+      depUpdateRouteUI();
+      try{ depAmountEl.focus(); }catch(err){}
+    });
+
+    depUpdateRouteUI();
+
+    function depSetCreating(flag, activeCard){
+      depCreating = !!flag;
+      document.querySelectorAll('[data-liog-usdt-network-card]').forEach(function(card){
+        card.disabled = depCreating;
+        card.classList.toggle('is-loading', depCreating && card === activeCard);
+      });
+      if(depAmountEl) depAmountEl.disabled = depCreating;
+    }
+
+    function depCreateRequest(activeCard){
+      if(depCreating) return;
+      var amount = depAmountEl ? String(depAmountEl.value || '').trim() : '';
+      var network = depNetworkEl ? String(depNetworkEl.value || '').trim() : '';
+      var selectedCard = activeCard || depSelectedMethodCard();
+      var selectedRoute = selectedCard ? String(selectedCard.getAttribute('data-route') || '') : '';
+      if(DepCfg.verificationBlocked && parseInt(DepCfg.verificationBlocked, 10) === 1){
+        depSetMsg(DepCfg.verificationMessage || 'Please complete business verification before creating a deposit request.', 'error');
+        return;
+      }
+      if(!amount || !network){
+        depSetMsg(tr('enter_amount_network','Please enter amount and select a network.'), 'error');
+        return;
+      }
+      var amountNum = parseAmount(amount);
+      var minAmount = depSelectedMethodMin();
+      if(amountNum <= 0){
+        depSetMsg(tr('invalid_amount','Please enter a valid amount.'), 'error');
+        return;
+      }
+      var autoEnabledForAmount = parseInt(DepCfg.autoEnabled || 0, 10) === 1 && amountNum <= parseAmount(DepCfg.autoMax || 5000);
+      if(autoEnabledForAmount){
+        amountNum = Math.round(amountNum * 100) / 100;
+        amount = String(amountNum);
+        if(depAmountEl) depAmountEl.value = amount;
+      }
+      if(minAmount > 0 && amountNum < minAmount){
+        depSetMsg(tr('minimum_deposit','Minimum deposit amount is {min}.',{min:format2(minAmount)}), 'error');
+        return;
+      }
+
+      depSetCreating(true, activeCard || depSelectedMethodCard());
+      depSetMsg(tr('creating_request','Creating secure payment invoice…'), 'info');
+      var hint = document.getElementById('liog-usdt-method-hint');
+      if(hint) hint.textContent = tr('creating_request','Creating secure payment invoice…');
+
+      var fd = new FormData();
+      fd.append('action', 'liog_usdt_create_deposit_request');
+      fd.append('nonce', DepCfg.nonce || '');
+      fd.append('amount', amount);
+      fd.append('network', network);
+
+      fetch(DepCfg.ajaxUrl || '', { method: 'POST', credentials: 'same-origin', body: fd })
+        .then(function(r){
+          return r.text().then(function(txt){
+            var json = null;
+            try { json = JSON.parse(txt); } catch(e) {
+              var first = txt.indexOf('{');
+              var last  = txt.lastIndexOf('}');
+              if(first !== -1 && last !== -1 && last > first){
+                try { json = JSON.parse(txt.slice(first, last + 1)); } catch(e2) {}
+              }
+            }
+            return { ok: r.ok, status: r.status, json: json, raw: txt };
+          });
+        })
+        .then(function(resp){
+          var json = resp && resp.json ? resp.json : null;
+          if(!json){
+            depSetMsg(tr('server_response_error','Server response error. Please try again.'), 'error');
+            if(window.console && console.error){ console.error('USDT deposit create: invalid JSON', resp && resp.raw ? resp.raw : resp); }
+            return;
+          }
+          if(!json.success){
+            depSetMsg((json && json.data && json.data.message) ? json.data.message : 'Error', 'error');
+            return;
+          }
+          var dep = json.data && json.data.deposit ? json.data.deposit : null;
+          if(dep){
+            depOpen(dep);
+            depSetMsg((json.data && json.data.reused) ? tr('pending_exists','A payment invoice is already active. Continue with that invoice.') : tr('request_created','Invoice created. Complete payment before the timer expires.'), 'success');
+          }
+        })
+        .catch(function(err){
+          depSetMsg(tr('network_error','Network error. Please try again.'), 'error');
+          if(window.console && console.error){ console.error('USDT deposit create failed', err); }
+        })
+        .then(function(){
+          depSetCreating(false, null);
+          var selected = depSelectedMethodCard();
+          var hint2 = document.getElementById('liog-usdt-method-hint');
+          if(hint2 && (!depModal || !depModal.classList.contains('is-open'))) hint2.textContent = selected ? tr('select_network','Select another network to create a new invoice.') : tr('select_network','Select a network to continue.');
+        });
+    }
+
+    // Payment method cards: selecting a valid network immediately creates/reopens the invoice.
+    document.addEventListener('click', function(e){
+      var card = e.target.closest('[data-liog-usdt-network-card]');
+      if(!card) return;
+      e.preventDefault();
+      var network=String(card.getAttribute('data-liog-usdt-network-card')||'').trim();
+      var route=String(card.getAttribute('data-route')||'');
+      var amount=parseAmount(depAmountEl?depAmountEl.value:'0');
+      var autoMax=parseAmount(DepCfg.autoMax||500);
+      if(!amount){ depSetMsg(tr('enter_amount_first','Please enter deposit amount first.'),'error'); try{depAmountEl.focus();}catch(err){} return; }
+      if(route==='auto'&&amount>autoMax){ depSetMsg(tr('manual_method_required','Please select one of the available deposit methods for this amount.'),'error'); return; }
+      if(route==='manual'&&parseInt(DepCfg.autoEnabled||0,10)===1&&amount<=autoMax){ depSetMsg(tr('auto_method_required','Please select one of the available deposit methods for this amount.'),'error'); return; }
+      var methodMin=parseAmount(card.getAttribute('data-min-amount')||'0');
+      if(methodMin>0&&amount<methodMin){ depSetMsg(tr('minimum_method','Minimum deposit amount for this method is {min}.',{min:format2(methodMin)}),'error'); return; }
+      document.querySelectorAll('[data-liog-usdt-network-card]').forEach(function(x){x.classList.remove('is-selected');x.setAttribute('aria-pressed','false');});
+      card.classList.add('is-selected'); card.setAttribute('aria-pressed','true');
+      if(depNetworkEl) depNetworkEl.value=network;
+      depSetMsg('', 'info');
+      depCreateRequest(card);
+    });
+
+    // Hidden create control is retained only as a no-JS/internal hook; no visible Continue button exists.
+    if(depCreateBtn){
+      depCreateBtn.addEventListener('click', function(){ depCreateRequest(depSelectedMethodCard()); });
+    }
+
+    // Row click to open details (event delegation: works even if theme re-renders the table)
+    document.addEventListener('click', function(e){
+      var tr = e.target.closest('.liog-usdt-history-row[data-deposit]');
+      if(!tr) return;
+      var dep = depParseRow(tr);
+      if(dep){
+        depOpen(dep);
+      }
+    });
+
+    // Submit proof
+    var depSubmitBtn = depEl('liog-usdt-submit');
+    if(depSubmitBtn){
+      depSubmitBtn.addEventListener('click', function(){
+        var depId = depEl('liog-usdt-deposit-id') ? depEl('liog-usdt-deposit-id').value : '';
+        var tx = depEl('liog-usdt-txhash') ? String(depEl('liog-usdt-txhash').value || '').trim() : '';
+        var sc = depEl('liog-usdt-screenshot') ? depEl('liog-usdt-screenshot').files[0] : null;
+        var msgEl = depEl('liog-usdt-proof-msg');
+
+        if(!depId){
+          if(msgEl) msgEl.innerHTML = '<div class="woocommerce-error" style="margin:0; padding:10px 12px;">' + escHtml(tr('deposit_id_missing','Deposit id missing.')) + '</div>';
+          return;
+        }
+        if(!tx){
+          if(msgEl) msgEl.innerHTML = '<div class="woocommerce-error" style="margin:0; padding:10px 12px;">' + escHtml(tr('tx_required','Transaction hash is required.')) + '</div>';
+          return;
+        }
+        if(!sc && !depIsBinancePay(currentDep)){
+          if(msgEl) msgEl.innerHTML = '<div class="woocommerce-error" style="margin:0; padding:10px 12px;">' + escHtml(tr('screenshot_required','Screenshot is required.')) + '</div>';
+          return;
+        }
+
+        depSetProofEnabled(false);
+        if(msgEl) msgEl.innerHTML = '<div class="woocommerce-info" style="margin:0; padding:10px 12px;">' + escHtml(tr('submitting','Submitting…')) + '</div>';
+
+        var fd = new FormData();
+        fd.append('action', 'liog_usdt_submit_deposit_proof');
+        fd.append('nonce', DepCfg.nonce || '');
+        fd.append('deposit_id', depId);
+        fd.append('tx_hash', tx);
+        if(sc){ fd.append('screenshot', sc); }
+
+        fetch(DepCfg.ajaxUrl || '', { method: 'POST', credentials: 'same-origin', body: fd })
+          .then(function(r){
+            return r.text().then(function(txt){
+              var json = null;
+              try { json = JSON.parse(txt); } catch(e) {
+                var first = txt.indexOf('{');
+                var last  = txt.lastIndexOf('}');
+                if(first !== -1 && last !== -1 && last > first){
+                  try { json = JSON.parse(txt.slice(first, last + 1)); } catch(e2) {}
+                }
+              }
+              return { ok: r.ok, status: r.status, json: json, raw: txt };
+            });
+          })
+          .then(function(resp){
+            var json = resp && resp.json ? resp.json : null;
+            if(!json){
+              if(msgEl) msgEl.innerHTML = '<div class="woocommerce-error" style="margin:0; padding:10px 12px;">' + escHtml(tr('server_response_error','Server response error. Please try again.')) + '</div>';
+              depSetProofEnabled(true);
+              if(window.console && console.error){ console.error('USDT deposit proof: invalid JSON', resp && resp.raw ? resp.raw : resp); }
+              return;
+            }
+            if(!json.success){
+              var msg = (json && json.data && json.data.message) ? json.data.message : 'Error';
+              if(msgEl) msgEl.innerHTML = '<div class="woocommerce-error" style="margin:0; padding:10px 12px;">' + escHtml(msg) + '</div>';
+              depSetProofEnabled(true);
+              return;
+            }
+            var okMsg = (json && json.data && json.data.message) ? json.data.message : tr('submitted_reviewing','Submitted. Status is now Reviewing.');
+            if(msgEl) msgEl.innerHTML = '<div class="woocommerce-message" style="margin:0; padding:10px 12px;">' + escHtml(okMsg) + '</div>';
+            // Refresh to update history/status/balance
+            setTimeout(function(){ window.location.reload(); }, 1200);
+          })
+          .catch(function(err){
+            if(msgEl) msgEl.innerHTML = '<div class="woocommerce-error" style="margin:0; padding:10px 12px;">' + escHtml(tr('network_error','Network error. Please try again.')) + '</div>';
+            depSetProofEnabled(true);
+            if(window.console && console.error){ console.error('USDT deposit proof failed', err); }
+          });
+      });
+    }
+
+    // Reopen the same active automatic invoice after a refresh only when this
+    // browser had already opened it. This prevents duplicate provider invoices
+    // without forcing a popup on unrelated visits.
+    try{
+      var pending=DepCfg.pendingDeposit||null;
+      var remembered=localStorage.getItem('liog_usdt_pending_id')||'';
+      if(pending && remembered && String(pending.id||'')===String(remembered) && String(pending.status||'')==='waiting'){
+        window.setTimeout(function(){depOpen(pending);},120);
+      }
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    initCheckoutFeeCalc();
+    initModalHandlers();
+    initCopy();
+    initProofSubmit();
+    initTimers();
+    initAutoOpenPaymentPopup();
+    initDepositRequests();
+  });
+})();

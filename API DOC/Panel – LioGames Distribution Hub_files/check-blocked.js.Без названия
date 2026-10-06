@@ -1,0 +1,36 @@
+(function ($) {
+    'use strict';
+
+    $(function () {
+        if (typeof BlockedUserAjax === 'undefined') {
+            return;
+        }
+
+        var uid = parseInt(BlockedUserAjax.user_id || 0, 10);
+        if (!uid) {
+            return;
+        }
+
+        // Ask server if this user is blocked.
+        $.post(
+            BlockedUserAjax.ajaxurl,
+            {
+                action: 'check_blocked_user',
+                nonce: BlockedUserAjax.nonce || ''
+            }
+        )
+            .done(function (resp) {
+                try {
+                    if (resp && resp.success && resp.data && resp.data.blocked) {
+                        var target = BlockedUserAjax.redirect_url || '/';
+                        window.location.href = target;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            })
+            .fail(function () {
+                // ignore
+            });
+    });
+})(jQuery);

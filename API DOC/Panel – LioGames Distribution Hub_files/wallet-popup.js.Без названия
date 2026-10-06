@@ -1,0 +1,56 @@
+(function(){
+'use strict';
+if(typeof LGCP_POPUP==='undefined')return;
+var state={invoice:null,poll:null,timer:null,seconds:0,qrValue:''};
+function id(x){return document.getElementById(x)}
+function post(action,data){var body=new URLSearchParams();body.append('action',action);body.append('nonce',LGCP_POPUP.nonce);Object.keys(data||{}).forEach(function(k){body.append(k,data[k]);});return fetch(LGCP_POPUP.ajaxUrl,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},body:body.toString()}).then(function(r){return r.json().catch(function(){throw new Error('Server response error.');});}).then(function(j){if(!j||!j.success)throw new Error(j&&j.data&&j.data.message?j.data.message:'Payment request failed.');return j.data;});}
+function txt(x,v){var e=id(x);if(e)e.textContent=v==null?'':String(v)}
+function modal(open){var m=id('lgcp-wallet-modal');if(!m)return;m.classList.toggle('is-hidden',!open);m.setAttribute('aria-hidden',open?'false':'true');document.documentElement.classList.toggle('lgcp-modal-open',!!open);document.body.classList.toggle('lgcp-modal-open',!!open)}
+function error(msg){var e=id('lgcp-wallet-error');if(!e)return;e.textContent=msg||'';e.classList.toggle('is-hidden',!msg)}
+function walletError(msg){var box=id('liog-usdt-msg');if(!box){modal(true);loading(false);error(msg);return;}box.innerHTML='';var d=document.createElement('div');d.className='woocommerce-error';d.textContent=msg;box.appendChild(d);var a=id('liog-usdt-amount');if(a){a.focus();try{a.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}}}
+function clearWalletError(){var box=id('liog-usdt-msg');if(box)box.innerHTML=''}
+function loading(on){var e=id('lgcp-wallet-loading'),p=id('lgcp-payment-panel');if(e)e.classList.toggle('is-hidden',!on);if(on&&p)p.classList.add('is-hidden')}
+function formatTimer(s){s=Math.max(0,parseInt(s||0,10));var m=Math.floor(s/60),r=s%60;return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0')}
+function qr(v){if(!v||state.qrValue===v)return;var q=id('lgcp-qr');if(!q)return;q.innerHTML='';try{if(typeof window.LGCPQRCode!=='function')throw new Error('QR library not ready');window.LGCPQRCode(q,String(v),200);state.qrValue=v;}catch(e){state.qrValue='';q.textContent='Loading QR…';setTimeout(function(){if(state.invoice&&state.invoice.qr_value===v)qr(v);},350);}}
+function progress(status){var order=['waiting','detected','confirming','verified'],idx=order.indexOf(status);if(status==='review')idx=2;if(status==='expired')idx=0;var f=id('lgcp-progress-fill');if(f)f.style.width=([8,38,70,100][Math.max(0,idx)]||8)+'%';document.querySelectorAll('#lgcp-wallet-modal .lgcp-step-grid [data-step]').forEach(function(el){var i=order.indexOf(el.getAttribute('data-step'));el.classList.remove('is-current','is-done');if(i<idx)el.classList.add('is-done');else if(i===idx)el.classList.add(status==='verified'?'is-done':'is-current');});}
+function label(s,credited){if(s==='verified'&&credited)return'Payment verified & credited';return s==='detected'?'Payment detected':s==='confirming'?'Confirming payment':s==='verified'?'Payment verified':s==='review'?'Manual review required':s==='expired'?'Invoice expired':'Awaiting payment'}
+function render(inv){if(!inv)return;state.invoice=inv;state.seconds=parseInt(inv.seconds_remaining||0,10);loading(false);error('');var p=id('lgcp-payment-panel');if(p)p.classList.remove('is-hidden');txt('lgcp-pay-amount',inv.amount);txt('lgcp-copy-amount',inv.amount+' '+inv.symbol);txt('lgcp-network-name',inv.network);txt('lgcp-receive-address',inv.receiving_address);txt('lgcp-status-text',label(inv.status,inv.credited));txt('lgcp-confirmation-label',(inv.confirmations||0)+' / '+(inv.required_confirmations||0)+' confirmations');var txRow=id('lgcp-tx-row'),txView=id('lgcp-tx-view');if(inv.tx_hash){txt('lgcp-tx-hash',inv.tx_hash);if(txRow)txRow.classList.remove('is-hidden');if(txView)txView.href='https://bscscan.com/tx/'+encodeURIComponent(inv.tx_hash);}else{txt('lgcp-tx-hash','');if(txRow)txRow.classList.add('is-hidden');if(txView)txView.href='#';}var sb=id('lgcp-statusbar');if(sb)sb.setAttribute('data-status',inv.status);progress(inv.status);qr(inv.qr_value);timerText();if(['verified','review','expired','cancelled'].indexOf(inv.status)!==-1)stopPoll();}
+function timerText(){var t=id('lgcp-timer');if(!t)return;if(state.invoice&&state.invoice.status==='verified')t.textContent=state.invoice.credited?'CREDITED':'VERIFIED';else if(state.invoice&&state.invoice.status==='review')t.textContent='REVIEW';else if(state.invoice&&state.invoice.status==='expired')t.textContent='EXPIRED';else t.textContent=formatTimer(state.seconds)}
+function startTimer(){if(state.timer)clearInterval(state.timer);state.timer=setInterval(function(){if(state.seconds>0)state.seconds--;timerText();},1000)}
+function stopPoll(){if(state.poll){clearInterval(state.poll);state.poll=null}}
+function poll(){if(!state.invoice||!state.invoice.id)return Promise.resolve();return post('lgcp_invoice_status',{invoice:state.invoice.id}).then(function(d){render(d.invoice)}).catch(function(){})}
+function startPoll(){stopPoll();state.poll=setInterval(poll,Math.max(5,parseInt(LGCP_POPUP.pollSeconds||8,10))*1000)}
+function openInvoice(inv){modal(true);render(inv);startTimer();if(['verified','review','expired','cancelled'].indexOf(inv.status)===-1)startPoll()}
+function openById(publicId){if(!publicId)return;modal(true);loading(true);error('');post('lgcp_invoice_open',{invoice:publicId}).then(function(d){openInvoice(d.invoice)}).catch(function(e){loading(false);error(e.message||'Could not open payment invoice.')})}
+function openExisting(){if(!LGCP_POPUP.initialInvoice)return false;openById(LGCP_POPUP.initialInvoice);return true}
+function amount(){var e=id('liog-usdt-amount');return e?String(e.value||'').trim():''}
+function create(){if(parseInt(LGCP_POPUP.directEnabled||0,10)!==1){walletError('USDT BEP-20 Direct is currently unavailable.');return;}var a=amount();if(a===''){walletError('Enter the deposit amount first.');return;}var n=Number(a),min=Number(LGCP_POPUP.minAmount),max=Number(LGCP_POPUP.maxAmount);if(!isFinite(n)||n<min||n>max){walletError('Enter an amount from '+LGCP_POPUP.minAmount+' to '+LGCP_POPUP.maxAmount+' USDT.');return;}clearWalletError();modal(true);error('');loading(true);post('lgcp_create_invoice',{amount:a}).then(function(d){LGCP_POPUP.initialInvoice=d.invoice.id;openInvoice(d.invoice)}).catch(function(e){loading(false);error(e.message||'Could not create payment.')})}
+function prepareWallet(){
+  // Core renders the Direct BEP-20 card and merged invoice history server-side.
+  // This script only owns modal actions; it never inserts/reorders history rows.
+  var card=document.querySelector('[data-lgcp-direct-card="1"]');
+  if(card){card.disabled=parseInt(LGCP_POPUP.directEnabled||0,10)!==1;}
+}
+document.addEventListener('click',function(e){
+  var tx=e.target.closest&&e.target.closest('.liog-wallet-history-tx,.lgcp-tx-view');
+  if(tx)return;
+  var hist=e.target.closest&&e.target.closest('[data-lgcp-invoice]');
+  if(hist){
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+    openById(hist.getAttribute('data-lgcp-invoice'));return;
+  }
+  var c=e.target.closest&&e.target.closest('[data-lgcp-direct-card="1"]');
+  if(c){
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+    if(state.invoice&&state.invoice.id&&['waiting','detected','confirming'].indexOf(state.invoice.status)!==-1){openInvoice(state.invoice);return;}
+    if(openExisting())return;
+    create();return;
+  }
+  if(e.target.closest&&e.target.closest('[data-lgcp-close]')){e.preventDefault();modal(false);return;}
+},true);
+document.addEventListener('keydown',function(e){if(e.key==='Escape')modal(false)});
+document.querySelectorAll('#lgcp-wallet-modal .lgcp-tabs [data-lgcp-tab]').forEach(function(btn){btn.addEventListener('click',function(){var tab=btn.getAttribute('data-lgcp-tab');document.querySelectorAll('#lgcp-wallet-modal .lgcp-tabs button').forEach(function(b){b.classList.toggle('is-active',b===btn)});id('lgcp-tab-scan').classList.toggle('is-hidden',tab!=='scan');id('lgcp-tab-copy').classList.toggle('is-hidden',tab!=='copy')})});
+document.querySelectorAll('#lgcp-wallet-modal .lgcp-copy-btn[data-copy-target]').forEach(function(btn){btn.addEventListener('click',function(){var t=id(btn.getAttribute('data-copy-target'));if(!t)return;var val=t.textContent.trim();var done=function(){var old=btn.textContent;btn.textContent='Copied';setTimeout(function(){btn.textContent=old},1000)};if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(val).then(done);else{var ta=document.createElement('textarea');ta.value=val;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();done()}})});
+var closeBtn=id('lgcp-close-payment');if(closeBtn)closeBtn.addEventListener('click',function(){modal(false)});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',prepareWallet);else prepareWallet();
+})();

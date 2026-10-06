@@ -1,0 +1,162 @@
+(function () {
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+
+  ready(function () {
+    if (document.body && document.body.classList && document.body.classList.contains('lio-account-shell')) {
+      document.documentElement.classList.add('lio-account-shell');
+    }
+
+    var toggles = Array.prototype.slice.call(document.querySelectorAll('.lio-g2-mobile-toggle'));
+    var profileMenus = Array.prototype.slice.call(document.querySelectorAll('.lio-g2-profile-menu'));
+
+    function setProfileOpen(menu, open) {
+      if (!menu) return;
+      var button = menu.querySelector('.lio-g2-profile');
+      var dropdown = menu.querySelector('.lio-g2-profile-menu__dropdown');
+      if (!button || !dropdown) return;
+      menu.classList.toggle('is-open', !!open);
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) dropdown.removeAttribute('hidden');
+      else dropdown.setAttribute('hidden', '');
+    }
+
+    function closeAllProfiles(exceptMenu) {
+      profileMenus.forEach(function (menu) {
+        if (menu !== exceptMenu) setProfileOpen(menu, false);
+      });
+    }
+
+    profileMenus.forEach(function (menu) {
+      var button = menu.querySelector('.lio-g2-profile');
+      if (!button) return;
+      setProfileOpen(menu, false);
+      button.addEventListener('click', function (e) {
+        e.preventDefault();
+        var nextOpen = !menu.classList.contains('is-open');
+        closeAllProfiles(menu);
+        setProfileOpen(menu, nextOpen);
+        if (nextOpen) {
+          document.body.classList.remove('lio-g2-menu-open');
+          toggles.forEach(function (toggle) { toggle.setAttribute('aria-expanded', 'false'); });
+        }
+      });
+    });
+
+    toggles.forEach(function (toggle) {
+      toggle.addEventListener('click', function () {
+        var isOpen = document.body.classList.toggle('lio-g2-menu-open');
+        toggles.forEach(function (item) { item.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); });
+        closeAllProfiles();
+      });
+    });
+
+    // API dropdown: do not auto-open from server-rendered active state.
+    document.querySelectorAll('.lio-g2-nav__group[open]').forEach(function (group) {
+      group.removeAttribute('open');
+    });
+
+    document.addEventListener('click', function (e) {
+      profileMenus.forEach(function (menu) {
+        if (menu.classList.contains('is-open') && !menu.contains(e.target)) {
+          setProfileOpen(menu, false);
+        }
+      });
+      var link = e.target.closest('.lio-g2-nav__link[href]');
+      if (link && document.body.classList.contains('lio-g2-menu-open')) {
+        document.body.classList.remove('lio-g2-menu-open');
+        toggles.forEach(function (toggle) { toggle.setAttribute('aria-expanded', 'false'); });
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      var copy = e.target.closest('[data-liog-copy]');
+      if (copy) {
+        e.preventDefault();
+        var value = copy.getAttribute('data-liog-copy') || '';
+        if (!value) return;
+        var done = function () { var old = copy.textContent; copy.textContent = 'Copied'; window.setTimeout(function(){ copy.textContent = old || 'Copy'; }, 1200); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(done).catch(function(){});
+      }
+    });
+
+    // Preserve the current page while the browser starts the next same-origin
+    // panel request; show only a thin progress cue instead of fading/blanking it.
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest('.lio-g2-nav a[href], .lio-g2-profile-menu__item[href]');
+      if (!a || e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (a.target && a.target !== '_self') return;
+      try {
+        var u = new URL(a.href, window.location.href);
+        if (u.origin !== window.location.origin || u.href === window.location.href || u.hash) return;
+        document.body.classList.add('lio-g2-route-loading');
+      } catch (err) {}
+    }, {capture:true});
+    window.addEventListener('pageshow', function(){ if(document.body) document.body.classList.remove('lio-g2-route-loading'); });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeAllProfiles();
+        if (document.body.classList.contains('lio-g2-menu-open')) {
+          document.body.classList.remove('lio-g2-menu-open');
+          toggles.forEach(function (toggle) { toggle.setAttribute('aria-expanded', 'false'); });
+        }
+      }
+    });
+  });
+})();
+
+/* LioGames 2.7.1 - subtle 3D interaction for reseller level cards. */
+(function () {
+  'use strict';
+  function initLevelMotion() {
+    var root = document.querySelector('.liog-upgrade-page--pro');
+    if (!root || !window.matchMedia) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    var hero = root.querySelector('.liog-level-overview');
+    if (hero) {
+      hero.addEventListener('pointermove', function (event) {
+        var r = hero.getBoundingClientRect();
+        var x = Math.max(0, Math.min(r.width, event.clientX - r.left));
+        var y = Math.max(0, Math.min(r.height, event.clientY - r.top));
+        hero.style.setProperty('--lv-glow-x', x + 'px');
+        hero.style.setProperty('--lv-glow-y', y + 'px');
+      }, {passive:true});
+    }
+
+    Array.prototype.forEach.call(root.querySelectorAll('.liog-upgrade-card--pro'), function (card) {
+      var raf = 0;
+      card.addEventListener('pointermove', function (event) {
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(function () {
+          var r = card.getBoundingClientRect();
+          var x = Math.max(0, Math.min(r.width, event.clientX - r.left));
+          var y = Math.max(0, Math.min(r.height, event.clientY - r.top));
+          var nx = (x / r.width) - 0.5;
+          var ny = (y / r.height) - 0.5;
+          card.style.setProperty('--lv-tilt-y', (nx * 6).toFixed(2) + 'deg');
+          card.style.setProperty('--lv-tilt-x', (-ny * 5).toFixed(2) + 'deg');
+          card.style.setProperty('--lv-gx', x + 'px');
+          card.style.setProperty('--lv-gy', y + 'px');
+        });
+      }, {passive:true});
+      card.addEventListener('pointerleave', function () {
+        if (raf) cancelAnimationFrame(raf);
+        card.style.setProperty('--lv-tilt-y', '0deg');
+        card.style.setProperty('--lv-tilt-x', '0deg');
+        card.style.setProperty('--lv-gx', '50%');
+        card.style.setProperty('--lv-gy', '50%');
+      }, {passive:true});
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initLevelMotion, {once:true});
+  else initLevelMotion();
+})();
+
+
+/* 2.8.3: only one reseller-nav dropdown may stay open. */
+;(function(){'use strict';document.addEventListener('toggle',function(e){var d=e.target;if(!d||!d.matches||!d.matches('.lio-g2-nav details.lio-g2-nav__group')||!d.open)return;document.querySelectorAll('.lio-g2-nav details.lio-g2-nav__group[open]').forEach(function(other){if(other!==d)other.removeAttribute('open');});},true);document.addEventListener('click',function(e){if(e.target.closest('.lio-g2-nav__group'))return;document.querySelectorAll('.lio-g2-nav details.lio-g2-nav__group[open]').forEach(function(d){d.removeAttribute('open');});});})();

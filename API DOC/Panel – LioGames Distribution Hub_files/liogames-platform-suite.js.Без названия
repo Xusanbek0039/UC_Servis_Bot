@@ -1,0 +1,61 @@
+(function(){
+  'use strict';
+  var config=window.LiogamesPlatformSuite||{};
+  var timers=[];
+  function ready(fn){if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn,{once:true});}else{fn();}}
+  function clearTimers(){timers.forEach(function(t){window.clearTimeout(t);});timers=[];}
+  function setStatus(form,text,state){
+    var box=form.querySelector('[data-liog-async-status]');
+    if(!box){box=document.createElement('div');box.className='liog-async-status';box.setAttribute('data-liog-async-status','');box.setAttribute('aria-live','polite');var actions=form.querySelector('.liog-async-actions');(actions||form).appendChild(box);}
+    box.hidden=false;box.textContent=text||'';box.classList.remove('is-error','is-success','is-loading');if(state)box.classList.add('is-'+state);
+  }
+  function busy(form,on){
+    document.body.classList.toggle('liog-ajax-loading',!!on);
+    form.classList.toggle('is-async-busy',!!on);
+    form.querySelectorAll('button[type="submit"],input[type="submit"]').forEach(function(b){b.disabled=!!on;});
+  }
+  function initToggle(root){(root||document).querySelectorAll('[data-liog-toggle]').forEach(function(btn){if(btn.dataset.liogBound)return;btn.dataset.liogBound='1';btn.addEventListener('click',function(){var el=document.querySelector(btn.getAttribute('data-liog-toggle'));if(!el)return;el.hidden=!el.hidden;if(!el.hidden){var first=el.querySelector('input,select,textarea');if(first)first.focus();}});});}
+  function initKb(root){var q=(root||document).querySelector('#liog-kb-search');if(!q||q.dataset.liogBound)return;q.dataset.liogBound='1';q.addEventListener('input',function(){var v=q.value.trim().toLowerCase();document.querySelectorAll('.liog-kb-card').forEach(function(card){card.style.display=!v||((card.getAttribute('data-kb-text')||'').indexOf(v)!==-1)?'':'none';});});}
+  function initCards(root){if(!window.matchMedia||!window.matchMedia('(hover:hover) and (pointer:fine)').matches)return;(root||document).querySelectorAll('.liog-suite-card,.liog-prod-card').forEach(function(card){if(card.dataset.liogMotion)return;card.dataset.liogMotion='1';card.addEventListener('pointermove',function(e){var r=card.getBoundingClientRect();card.style.setProperty('--lios-mx',(e.clientX-r.left)+'px');card.style.setProperty('--lios-my',(e.clientY-r.top)+'px');},{passive:true});card.addEventListener('pointerleave',function(){card.style.removeProperty('--lios-mx');card.style.removeProperty('--lios-my');},{passive:true});});}
+  function initPlayground(root){
+    var form=(root||document).querySelector('#liog-playground-form');if(!form)return;
+    var endpoint=form.querySelector('#liog-playground-endpoint'),product=form.querySelector('#liog-playground-product'),variation=form.querySelector('#liog-playground-variation'),preview=form.querySelector('#liog-playground-preview');
+    function update(){if(!endpoint||!preview)return;var ep=endpoint.value||'products',pid=product?parseInt(product.value||'0',10):0,vid=variation?parseInt(variation.value||'0',10):0,text='GET /api/v1/products';if(ep==='product-schema')text='GET /api/v1/product-schema?product_id='+(pid||'{product_id}')+(vid?'&variation_id='+vid:'');if(ep==='sandbox-order')text='POST /api/v1/sandbox/order-create\n'+JSON.stringify({product_id:pid||'{product_id}',variation_id:vid||'{variation_id}',client_ref:'playground-{generated}',simulate:'completed'},null,2);preview.textContent=text;}
+    if(!form.dataset.liogPlayground){form.dataset.liogPlayground='1';[endpoint,product,variation].forEach(function(el){if(el){el.addEventListener('change',update);el.addEventListener('input',update);}});} update();
+  }
+  function initAll(root){initToggle(root);initKb(root);initCards(root);initPlayground(root);}
+  function fragmentSelector(){if(document.querySelector('.woocommerce-MyAccount-content'))return '.woocommerce-MyAccount-content';if(document.querySelector('.liog-support-hub'))return '.liog-support-hub';if(document.querySelector('.liog-suite-shell'))return '.liog-suite-shell';return '';}
+  async function refreshFragment(){
+    var selector=fragmentSelector();if(!selector)return false;
+    var r=await fetch(window.location.href,{method:'GET',credentials:'same-origin',headers:{'X-Lio-Fragment':'1','Cache-Control':'no-cache'}});if(!r.ok)throw new Error('Unable to refresh this view.');
+    var html=await r.text(),doc=new DOMParser().parseFromString(html,'text/html'),fresh=doc.querySelector(selector),current=document.querySelector(selector);if(!fresh||!current)throw new Error('Updated view was not found.');
+    current.innerHTML=fresh.innerHTML;initAll(current);return true;
+  }
+  function validatePlayground(form){
+    if(form.id!=='liog-playground-form')return true;var endpoint=form.querySelector('#liog-playground-endpoint'),product=form.querySelector('#liog-playground-product');if(!endpoint)return true;var ep=endpoint.value,pid=product?parseInt(product.value||'0',10):0;if((ep==='product-schema'||ep==='sandbox-order')&&!pid){if(product){product.setCustomValidity('Select a product for this action.');product.reportValidity();window.setTimeout(function(){product.setCustomValidity('');},1200);product.focus();}return false;}return true;
+  }
+  async function submitAsync(form){
+    var action=(form.querySelector('[name="liog_platform_action"]')||{}).value||'';if(!action||action==='export_orders')return false;if(!validatePlayground(form))return true;
+    if(!config.ajaxUrl){setStatus(form,'Async endpoint is unavailable. Reload once and try again.','error');return true;}
+    clearTimers();busy(form,true);setStatus(form,action==='playground_run'?'Preparing safe request…':'Saving securely…','loading');
+    timers.push(window.setTimeout(function(){if(form.isConnected)setStatus(form,action==='playground_run'?'Running test and waiting for response…':'Waiting for server confirmation…','loading');},650));
+    try{
+      var fd=new FormData(form);fd.set('action','liogames_platform_action');
+      var r=await fetch(config.ajaxUrl,{method:'POST',credentials:'same-origin',body:fd,headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}),j=null;
+      try{j=await r.json();}catch(parseErr){throw new Error('Server returned an invalid response.');}
+      if(!r.ok||!j||j.success!==true){var msg=(j&&j.data&&j.data.message)?j.data.message:((j&&j.data&&typeof j.data==='string')?j.data:'Request could not be completed.');throw new Error(msg);}
+      setStatus(form,action==='playground_run'?'Response received. Updating result…':'Saved. Updating this section…','success');
+      await refreshFragment();
+      return true;
+    }catch(err){setStatus(form,(err&&err.message)?err.message:'Temporary request error. Please try again.','error');return true;}
+    finally{clearTimers();busy(form,false);}
+  }
+  ready(function(){
+    initAll(document);
+    document.addEventListener('click',function(e){var btn=e.target.closest('.liog-copy-btn[data-copy]');if(!btn)return;e.preventDefault();var value=btn.getAttribute('data-copy')||'';if(!value)return;var old=btn.textContent;function done(){btn.textContent='Copied';window.setTimeout(function(){btn.textContent=old||'Copy';},1200);}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(done).catch(function(){});}});
+    document.addEventListener('submit',function(e){var form=e.target;if(!form||!form.querySelector||!form.querySelector('[name="liog_platform_action"]'))return;var action=(form.querySelector('[name="liog_platform_action"]')||{}).value||'';if(action==='export_orders')return;e.preventDefault();submitAsync(form);},true);
+  });
+})();
+
+/* Keep third-party chat launchers available without the large auto-greeting covering content. */
+;(function(){'use strict';function findGreeting(){if(!document.body||!document.createTreeWalker)return;var walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),n,checked=0;while((n=walker.nextNode())&&checked<5000){checked++;if(!/^\s*we are here!?\s*$/i.test(n.nodeValue||''))continue;var el=n.parentElement,candidate=null,hops=0;while(el&&el!==document.body&&hops<6){var cs=window.getComputedStyle(el),r=el.getBoundingClientRect(),nearCorner=r.right>window.innerWidth-460&&r.bottom>window.innerHeight-420;if((cs.position==='fixed'||cs.position==='sticky')&&nearCorner&&r.width<=460&&r.height<=220){candidate=el;break;}el=el.parentElement;hops++;}if(candidate){candidate.style.setProperty('display','none','important');return;}}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(findGreeting,700);setTimeout(findGreeting,2200);},{once:true});else{setTimeout(findGreeting,700);setTimeout(findGreeting,2200);}})();

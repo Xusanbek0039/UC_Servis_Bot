@@ -7,3 +7,7 @@ venv/
 media/
 *.log
 .pytest_cache/
+backups/
+backup/
+*.gz
+*.pyc

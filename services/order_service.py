@@ -5,7 +5,7 @@ from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup
 
 import database as db
-from config import ADMIN_IDS, LIOGAMES_AUTO_DELIVERY
+from config import ADMIN_IDS, LIOGAMES_AUTO_DELIVERY, LIOGAMES_STOP_ON_LOW_BALANCE, LOW_BALANCE_THRESHOLD
 from keyboards.user import order_success_keyboard
 from services.liogames import LioGamesService, LioGamesError
 from services.proof_channel import ProofChannelService
@@ -73,6 +73,14 @@ class OrderService:
             return True
 
         try:
+            if LIOGAMES_STOP_ON_LOW_BALANCE:
+                balance_data = await LioGamesService.get_balance()
+                wallet = float(balance_data.get("balance", balance_data.get("wallet_balance", 0)) or 0)
+                if wallet < LOW_BALANCE_THRESHOLD:
+                    await db.set_delivery_status(order_id, "FAILED", supplier_status="LOW_BALANCE", last_supplier_error="Supplier wallet below threshold")
+                    await db.update_order_status(order_id, "MANUAL_REVIEW")
+                    await cls.notify_admins(bot, f"⚠️ LioGames balansi ${wallet:.2f}; order <code>{order_id}</code> avtomatik yuborilmadi. Balansni to'ldiring yoki qo'lda yetkazing.")
+                    return False
             # LioGames' client_ref is our immutable order_id. create_order does not blindly retry.
             result = await LioGamesService.create_order(
                 order_id=order_id,

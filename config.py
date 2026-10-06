@@ -56,11 +56,13 @@ LIOGAMES_AUTO_DELIVERY = os.getenv("LIOGAMES_AUTO_DELIVERY", "false").strip().lo
 LIOGAMES_STATUS_INTERVAL = max(10, int(os.getenv("LIOGAMES_STATUS_INTERVAL", "20")))
 LIOGAMES_MAX_RETRIES = max(0, min(5, int(os.getenv("LIOGAMES_MAX_RETRIES", "3"))))
 LOW_BALANCE_THRESHOLD = float(os.getenv("LOW_BALANCE_THRESHOLD", "20"))
+LIOGAMES_STOP_ON_LOW_BALANCE = os.getenv("LIOGAMES_STOP_ON_LOW_BALANCE", "true").strip().lower() in ("1", "true", "yes")
 USD_RATE_URL = os.getenv("USD_RATE_URL", "https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/").strip()
 USD_RATE_INTERVAL_HOURS = max(1, int(os.getenv("USD_RATE_INTERVAL_HOURS", "12")))
 MAX_PROFIT_PERCENT = max(0, float(os.getenv("MAX_PROFIT_PERCENT", "200")))
 ORDER_PAYMENT_TTL_MINUTES = max(5, int(os.getenv("ORDER_PAYMENT_TTL_MINUTES", "20")))
 BACKUP_RETENTION_DAYS = max(1, int(os.getenv("BACKUP_RETENTION_DAYS", "7")))
+BACKUP_DIR = os.getenv("BACKUP_DIR", "backups").strip()
 
 # Proof Channel Configuration
 PROOF_CHANNEL_ID = os.getenv("PROOF_CHANNEL_ID", "").strip()

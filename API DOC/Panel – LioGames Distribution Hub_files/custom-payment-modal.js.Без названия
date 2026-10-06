@@ -1,0 +1,19 @@
+jQuery(document).ready(function($){
+    // Open the modal when a payment button is clicked
+    $('body').on('click', '.button.custom-payment-btn', function(e) {
+        e.preventDefault();
+        $('#custom-payment-modal').fadeIn();
+    });
+
+    // Close the modal when the close button is clicked
+    $('#close-modal').click(function(){
+        $('#custom-payment-modal').fadeOut();
+    });
+
+    // Optional: Close modal if clicked outside the modal
+    $(document).click(function(e) {
+        if (!$(e.target).closest('#custom-payment-modal, .button.custom-payment-btn').length) {
+            $('#custom-payment-modal').fadeOut();
+        }
+    });
+});

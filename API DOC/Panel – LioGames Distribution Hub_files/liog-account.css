@@ -1,0 +1,2609 @@
+/*
+ * LioGames – G2Bulk-style My Account UI
+ * Lightweight, no Elementor/page-builder CSS required.
+ */
+
+:root{
+  --lio-g2-bg:#020409;
+  --lio-g2-panel:#080d17;
+  --lio-g2-panel-2:#101828;
+  --lio-g2-line:rgba(255,204,0,.34);
+  --lio-g2-line-soft:rgba(255,204,0,.18);
+  --lio-g2-yellow:#ffc400;
+  --lio-g2-yellow-2:#ffd84a;
+  --lio-g2-text:#eef3ff;
+  --lio-g2-muted:#99a4b8;
+  --lio-g2-blue:#111827;
+  --lio-g2-green:#65d4bd;
+  --lio-g2-danger:#ff6677;
+  --lio-g2-radius:18px;
+  --lio-g2-shadow:0 24px 70px rgba(0,0,0,.48);
+}
+
+/* Make the account area full-screen and hide the default Storefront shell only for logged-in account pages. */
+body.woocommerce-account.logged-in{
+  background:var(--lio-g2-bg)!important;
+  overflow-x:hidden;
+}
+body.woocommerce-account.logged-in #masthead,
+body.woocommerce-account.logged-in .storefront-breadcrumb,
+body.woocommerce-account.logged-in .woocommerce-breadcrumb,
+body.woocommerce-account.logged-in #colophon{
+  display:none!important;
+}
+body.woocommerce-account.logged-in .site,
+body.woocommerce-account.logged-in .site-content,
+body.woocommerce-account.logged-in #content,
+body.woocommerce-account.logged-in .col-full{
+  background:transparent!important;
+}
+body.woocommerce-account.logged-in .site-content .col-full{
+  max-width:none!important;
+  width:100vw!important;
+  margin-left:calc(50% - 50vw)!important;
+  margin-right:calc(50% - 50vw)!important;
+  padding:0!important;
+}
+body.woocommerce-account.logged-in #primary.content-area,
+body.woocommerce-account.logged-in .site-content .content-area,
+body.woocommerce-account.logged-in .site-main{
+  width:100%!important;
+  max-width:none!important;
+  float:none!important;
+  margin:0!important;
+  padding:0!important;
+}
+body.woocommerce-account.logged-in #secondary,
+body.woocommerce-account.logged-in .widget-area,
+.lio-g2-app .woocommerce-MyAccount-navigation{
+  display:none!important;
+}
+html.lio-account-shell,
+body.lio-account-shell{
+  height:auto!important;
+  overflow:auto!important;
+}
+
+.lio-g2-app{
+  min-height:100vh;
+  color:var(--lio-g2-text);
+  font-family:Poppins,Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:
+    radial-gradient(900px 520px at 14% 0%, rgba(30,48,82,.58), transparent 56%),
+    radial-gradient(740px 440px at 92% 92%, rgba(24,43,76,.72), transparent 56%),
+    linear-gradient(180deg,#0f1626 0%,#020409 26%,#020409 70%,#111a2c 100%);
+}
+
+/* Header */
+.lio-g2-header{
+  border-bottom:1px solid rgba(160,171,196,.18);
+  background:linear-gradient(90deg,rgba(17,27,45,.95),rgba(4,6,11,.96));
+  position:sticky;
+  top:0;
+  z-index:80;
+  backdrop-filter:blur(14px);
+}
+.lio-g2-header__top{
+  width:min(1180px,calc(100% - 32px));
+  min-height:68px;
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+}
+.lio-g2-brand{
+  display:inline-flex;
+  align-items:center;
+  text-decoration:none!important;
+  color:var(--lio-g2-yellow)!important;
+  font-weight:1000;
+  letter-spacing:-.04em;
+  font-size:28px;
+  line-height:1;
+  text-shadow:0 7px 24px rgba(255,196,0,.22);
+}
+.lio-g2-brand__logo img,
+.lio-g2-brand img{
+  max-height:42px;
+  width:auto;
+  display:block;
+}
+.lio-g2-brand__text{
+  color:var(--lio-g2-yellow);
+}
+.lio-g2-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.lio-g2-balance,
+.lio-g2-profile,
+.lio-g2-mobile-toggle{
+  min-height:42px;
+  border-radius:12px;
+  border:1px solid rgba(255,196,0,.24);
+  background:rgba(255,196,0,.08);
+  color:var(--lio-g2-yellow)!important;
+  text-decoration:none!important;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  font-weight:900;
+  padding:8px 13px;
+  line-height:1;
+}
+.lio-g2-balance .woocommerce-Price-amount,
+.lio-g2-balance .amount{
+  color:inherit!important;
+  font-weight:900!important;
+}
+.lio-g2-coin{
+  width:25px;
+  height:25px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,#8ee8d0,#37bfa3);
+  color:#fff;
+  font-size:13px;
+  font-weight:1000;
+  box-shadow:0 0 0 2px rgba(255,255,255,.08) inset;
+}
+.lio-g2-profile,
+.lio-g2-mobile-toggle{
+  width:42px;
+  padding:0;
+}
+.lio-g2-profile .dashicons,
+.lio-g2-mobile-toggle .dashicons{
+  width:18px;
+  height:18px;
+  font-size:18px;
+}
+.lio-g2-mobile-toggle{
+  display:none;
+  cursor:pointer;
+}
+
+/* Navigation */
+.lio-g2-nav{
+  width:min(1180px,calc(100% - 32px));
+  margin:0 auto;
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:8px 0 11px;
+  overflow:visible;
+}
+.lio-g2-nav__link,
+.lio-g2-nav__summary{
+  height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:0 16px;
+  border-radius:9px;
+  color:var(--lio-g2-muted)!important;
+  text-decoration:none!important;
+  font-weight:800;
+  font-size:14px;
+  line-height:1;
+  border:1px solid transparent;
+  white-space:nowrap;
+  transition:background .16s ease,color .16s ease,border-color .16s ease,transform .16s ease;
+}
+.lio-g2-nav__link:hover,
+.lio-g2-nav__group:hover .lio-g2-nav__summary{
+  color:#fff!important;
+  background:rgba(255,255,255,.06);
+}
+.lio-g2-nav__link.is-active,
+.lio-g2-nav__group.is-active>.lio-g2-nav__summary{
+  background:var(--lio-g2-yellow);
+  color:#111!important;
+  border-color:var(--lio-g2-yellow);
+  box-shadow:0 10px 26px rgba(255,196,0,.19);
+}
+.lio-g2-nav__link .dashicons,
+.lio-g2-nav__summary .dashicons{
+  width:17px;
+  height:17px;
+  font-size:17px;
+  opacity:.95;
+}
+.lio-g2-nav__group{
+  position:relative;
+}
+.lio-g2-nav__summary{
+  list-style:none;
+  cursor:pointer;
+}
+.lio-g2-nav__summary::-webkit-details-marker{display:none;}
+.lio-g2-nav__chev{
+  margin-left:1px;
+  transition:transform .16s ease;
+}
+.lio-g2-nav__group[open] .lio-g2-nav__chev{transform:rotate(180deg);}
+.lio-g2-nav__submenu{
+  position:absolute;
+  top:calc(100% + 9px);
+  left:50%;
+  transform:translateX(-50%);
+  min-width:235px;
+  padding:9px;
+  border:1px solid rgba(255,204,0,.22);
+  border-radius:14px;
+  background:rgba(8,13,23,.98);
+  box-shadow:0 24px 70px rgba(0,0,0,.58);
+  z-index:90;
+  display:grid;
+  gap:5px;
+}
+.lio-g2-nav__subitem{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:11px 12px;
+  border-radius:10px;
+  color:var(--lio-g2-muted)!important;
+  text-decoration:none!important;
+  font-weight:800;
+  font-size:13px;
+}
+.lio-g2-nav__subitem:hover,
+.lio-g2-nav__subitem.is-active{
+  background:rgba(255,255,255,.06);
+  color:#fff!important;
+}
+.lio-g2-nav__subitem.is-active{
+  color:var(--lio-g2-yellow)!important;
+}
+
+/* Main frame */
+.lio-g2-main{
+  width:min(1180px,calc(100% - 32px));
+  margin:0 auto;
+  padding:30px 0 70px;
+}
+.lio-g2-content-card{
+  background:transparent;
+}
+.lio-g2-app .woocommerce,
+.lio-g2-app .woocommerce-MyAccount-content{
+  float:none!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  color:var(--lio-g2-text);
+}
+.lio-g2-app a{color:var(--lio-g2-yellow);}
+.lio-g2-app p{color:var(--lio-g2-muted);}
+.lio-g2-app h1,
+.lio-g2-app h2,
+.lio-g2-app h3,
+.lio-g2-app h4{
+  color:var(--lio-g2-text);
+  letter-spacing:-.02em;
+}
+
+/* Generic panels/tables/forms created by WooCommerce or LioGames plugin tabs. */
+.lio-g2-panel,
+.lio-card,
+.lio-g2-app .liog-tab-panel,
+.lio-g2-app .liogames-upgrade-page,
+.lio-g2-app .woocommerce-EditAccountForm,
+.lio-g2-app .woocommerce-address-fields,
+.lio-g2-app .woocommerce-Addresses .woocommerce-Address,
+.lio-g2-app .woocommerce-MyAccount-content>form:not(.woocommerce-ordering),
+.lio-g2-app .woocommerce-MyAccount-content>.woocommerce-info,
+.lio-g2-app .woocommerce-MyAccount-content>.woocommerce-message,
+.lio-g2-app .woocommerce-MyAccount-content>.woocommerce-error{
+  border:1px solid var(--lio-g2-line-soft);
+  border-radius:var(--lio-g2-radius);
+  background:linear-gradient(180deg,rgba(13,19,31,.86),rgba(5,9,16,.92));
+  box-shadow:0 14px 44px rgba(0,0,0,.24);
+}
+.lio-g2-app .liog-tab-panel,
+.lio-g2-app .woocommerce-EditAccountForm,
+.lio-g2-app .woocommerce-address-fields,
+.lio-g2-app .woocommerce-Addresses .woocommerce-Address,
+.lio-g2-app .woocommerce-MyAccount-content>form:not(.woocommerce-ordering){
+  padding:20px;
+}
+.lio-g2-app .woocommerce-info,
+.lio-g2-app .woocommerce-message,
+.lio-g2-app .woocommerce-error{
+  background:rgba(255,196,0,.08)!important;
+  border-color:rgba(255,196,0,.22)!important;
+  color:#e7ecf7!important;
+}
+.lio-g2-app input[type="text"],
+.lio-g2-app input[type="email"],
+.lio-g2-app input[type="password"],
+.lio-g2-app input[type="number"],
+.lio-g2-app input[type="url"],
+.lio-g2-app select,
+.lio-g2-app textarea{
+  width:100%;
+  border:1px solid rgba(255,255,255,.12)!important;
+  background:#0b1220!important;
+  color:#fff!important;
+  border-radius:12px!important;
+  padding:12px 13px!important;
+  box-shadow:none!important;
+}
+.lio-g2-app input:focus,
+.lio-g2-app select:focus,
+.lio-g2-app textarea:focus{
+  border-color:rgba(255,196,0,.58)!important;
+  outline:none!important;
+}
+.lio-g2-app label{color:#dce4f7;font-weight:800;}
+.lio-g2-app .button,
+.lio-g2-app button.button,
+.lio-g2-app input.button,
+.lio-g2-app .woocommerce-button{
+  border:0!important;
+  border-radius:11px!important;
+  background:var(--lio-g2-yellow)!important;
+  color:#111!important;
+  font-weight:900!important;
+  padding:11px 16px!important;
+  box-shadow:0 10px 24px rgba(255,196,0,.18)!important;
+  text-decoration:none!important;
+}
+.lio-g2-app .button:hover,
+.lio-g2-app button.button:hover,
+.lio-g2-app input.button:hover,
+.lio-g2-app .woocommerce-button:hover{
+  background:var(--lio-g2-yellow-2)!important;
+}
+.lio-g2-app table.shop_table,
+.lio-g2-table{
+  width:100%;
+  border-collapse:separate!important;
+  border-spacing:0!important;
+  border:1px solid var(--lio-g2-line-soft)!important;
+  border-radius:16px!important;
+  overflow:hidden;
+  background:rgba(6,11,20,.76)!important;
+  color:var(--lio-g2-text)!important;
+}
+.lio-g2-app table.shop_table th,
+.lio-g2-table th{
+  background:#1b2637!important;
+  color:#dce5f6!important;
+  font-size:12px;
+  font-weight:900!important;
+  padding:12px 14px!important;
+  border:0!important;
+}
+.lio-g2-app table.shop_table td,
+.lio-g2-table td{
+  border:0!important;
+  border-top:1px solid rgba(255,255,255,.06)!important;
+  padding:13px 14px!important;
+  color:#d1dae9!important;
+}
+.lio-g2-app table.shop_table tr:hover td,
+.lio-g2-table tr:hover td{background:rgba(255,255,255,.025)!important;}
+
+/* Dashboard */
+.lio-dashboard{
+  color:var(--lio-g2-text);
+}
+.lio-page-title{
+  font-size:26px;
+  font-weight:1000;
+  margin:0 0 20px;
+  color:var(--lio-g2-yellow)!important;
+}
+.lio-user-info-card{
+  border:1px solid var(--lio-g2-line);
+  border-radius:16px;
+  background:linear-gradient(180deg,rgba(20,22,9,.78),rgba(7,10,16,.92));
+  padding:18px 18px 22px;
+  box-shadow:0 14px 42px rgba(0,0,0,.28);
+}
+.lio-section-title{
+  margin:0 0 14px;
+  font-size:14px;
+  font-weight:1000;
+  color:#fff!important;
+}
+.lio-section-title--yellow{
+  color:var(--lio-g2-yellow)!important;
+}
+.lio-user-info-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  border-top:1px solid rgba(255,196,0,.45);
+  padding-top:13px;
+}
+.lio-info-k{
+  color:var(--lio-g2-yellow);
+  font-size:11px;
+  font-weight:900;
+  margin-bottom:6px;
+}
+.lio-info-v{
+  color:#dbe4f6;
+  font-size:13px;
+  font-weight:700;
+  word-break:break-word;
+}
+.lio-stat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:18px;
+  margin:20px 0;
+}
+.lio-stat-card{
+  min-height:104px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  border:1px solid var(--lio-g2-line);
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(12,17,28,.92),rgba(5,8,15,.96));
+  box-shadow:0 12px 34px rgba(0,0,0,.28);
+  padding:16px;
+}
+.lio-stat-card__label{
+  color:var(--lio-g2-yellow);
+  font-size:13px;
+  font-weight:1000;
+  margin-bottom:8px;
+}
+.lio-stat-card__value{
+  color:#fff;
+  font-size:29px;
+  font-weight:1000;
+  line-height:1.05;
+}
+.lio-stat-card__sub{
+  color:var(--lio-g2-muted);
+  margin-top:3px;
+  font-size:11px;
+  font-weight:700;
+}
+.lio-chart-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  margin-bottom:20px;
+}
+.lio-chart-card{
+  border:1px solid var(--lio-g2-line);
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(10,15,27,.92),rgba(4,8,15,.98));
+  padding:16px;
+  min-height:215px;
+}
+.lio-chart-title{
+  margin:0 0 8px;
+  color:var(--lio-g2-yellow)!important;
+  font-size:13px;
+  font-weight:1000;
+}
+.lio-chart-canvas{
+  width:100%;
+  height:170px;
+  position:relative;
+}
+.lio-chart-canvas svg{
+  width:100%;
+  height:100%;
+  display:block;
+}
+.lio-chart-label{
+  fill:rgba(255,196,0,.82);
+  font-size:10px;
+  font-weight:800;
+}
+.lio-history-card{
+  border:1px solid var(--lio-g2-line);
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(8,13,23,.94),rgba(4,8,15,.98));
+  padding:16px;
+  margin-bottom:20px;
+}
+.lio-history-card__title{
+  margin:0 0 14px;
+  color:var(--lio-g2-yellow)!important;
+  font-size:15px;
+  font-weight:1000;
+}
+.lio-empty-row,
+.lio-empty-note{
+  text-align:center;
+  color:rgba(160,171,196,.72)!important;
+  padding:18px!important;
+}
+.lio-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  padding:5px 9px;
+  font-size:11px;
+  font-weight:900;
+  text-decoration:none!important;
+}
+.lio-pill--ok{background:rgba(101,212,189,.14);color:#8ee8d0!important;border:1px solid rgba(101,212,189,.28);}
+.lio-pill--bad{background:rgba(255,102,119,.14);color:#ff8b99!important;border:1px solid rgba(255,102,119,.28);}
+.lio-pill--warn{background:rgba(255,196,0,.14);color:var(--lio-g2-yellow)!important;border:1px solid rgba(255,196,0,.28);}
+
+/* Legacy class support from old dashboard sections. */
+.lio-dashboard-grid,.lio-stats{display:grid;gap:16px;}
+.lio-card{padding:16px;}
+.lio-profile{display:flex;gap:12px;align-items:center;}
+.lio-profile__avatar{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(255,196,0,.12);color:var(--lio-g2-yellow);font-weight:1000;}
+.lio-profile__name{margin:0;color:#fff;font-weight:900;}
+.lio-profile__meta{color:var(--lio-g2-muted);font-size:12px;}
+.lio-balance__value{font-size:22px;font-weight:1000;color:#fff;}
+
+/* Footer */
+.lio-g2-footer{
+  width:min(1180px,calc(100% - 32px));
+  margin:0 auto;
+  min-height:62px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 0;
+  border-top:1px solid rgba(160,171,196,.13);
+  color:#8f99ad;
+  font-size:12px;
+}
+.lio-g2-footer strong{color:var(--lio-g2-yellow);}
+.lio-g2-footer__links{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.lio-g2-footer a{color:#98a3b8!important;text-decoration:none!important;}
+.lio-g2-footer a:hover{color:var(--lio-g2-yellow)!important;}
+
+@media (max-width: 1080px){
+  .lio-g2-nav{justify-content:flex-start;overflow-x:auto;scrollbar-width:none;}
+  .lio-g2-nav::-webkit-scrollbar{display:none;}
+}
+@media (max-width: 860px){
+  .lio-g2-header__top,.lio-g2-nav,.lio-g2-main,.lio-g2-footer{width:min(100% - 22px,1180px);}
+  .lio-g2-mobile-toggle{display:inline-flex;}
+  .lio-g2-nav{display:none;align-items:stretch;flex-direction:column;padding:8px 0 13px;max-height:70vh;overflow:auto;}
+  body.lio-g2-menu-open .lio-g2-nav{display:flex;}
+  .lio-g2-nav__link,.lio-g2-nav__summary{width:100%;justify-content:flex-start;}
+  .lio-g2-nav__group{width:100%;}
+  .lio-g2-nav__submenu{position:static;transform:none;margin-top:8px;width:100%;box-shadow:none;background:rgba(0,0,0,.18);}
+  .lio-g2-main{padding-top:22px;}
+  .lio-user-info-grid,.lio-stat-grid,.lio-chart-grid{grid-template-columns:1fr;}
+  .lio-g2-footer{flex-direction:column;align-items:flex-start;}
+}
+@media (max-width: 560px){
+  .lio-g2-brand{font-size:23px;}
+  .lio-g2-balance{max-width:150px;overflow:hidden;}
+  .lio-g2-actions{gap:7px;}
+  .lio-stat-card__value{font-size:24px;}
+  .lio-page-title{font-size:23px;}
+  .lio-history-card{padding:12px;}
+  .lio-g2-app table.shop_table{font-size:12px;}
+}
+
+/* ==========================================================
+   Patch: dark-theme discolor fixes for WooCommerce/account tabs
+   Keeps existing wallet/payment logic untouched.
+   ========================================================== */
+.lio-g2-app .woocommerce-MyAccount-content table,
+.lio-g2-app .woocommerce-MyAccount-content table.shop_table,
+.lio-g2-app .woocommerce-MyAccount-content .liog-usdt-history,
+.lio-g2-app .woocommerce-MyAccount-content .lio-history-card table{
+  width:100%!important;
+  border-collapse:separate!important;
+  border-spacing:0!important;
+  overflow:hidden!important;
+  border:1px solid rgba(255,204,0,.20)!important;
+  border-radius:16px!important;
+  background:#08111e!important;
+  color:#dbe4f6!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table thead,
+.lio-g2-app .woocommerce-MyAccount-content table thead tr,
+.lio-g2-app .woocommerce-MyAccount-content table th{
+  background:#1b2637!important;
+  color:#edf3ff!important;
+  border:0!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table tbody,
+.lio-g2-app .woocommerce-MyAccount-content table tbody tr,
+.lio-g2-app .woocommerce-MyAccount-content table td{
+  background:#07101c!important;
+  color:#d6deef!important;
+  border-color:rgba(255,255,255,.065)!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table tbody tr:nth-child(even) td{
+  background:#091524!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table tbody tr:hover td{
+  background:#101b2b!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table td a,
+.lio-g2-app .woocommerce-MyAccount-content table .liog-usdt-action{
+  color:var(--lio-g2-yellow)!important;
+  font-weight:900!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table .woocommerce-Price-amount,
+.lio-g2-app .woocommerce-MyAccount-content table .amount{
+  color:#eaf0ff!important;
+}
+
+/* Account details: remove default white password fieldset block. */
+.lio-g2-app .woocommerce-EditAccountForm fieldset,
+.lio-g2-app .woocommerce-MyAccount-content fieldset{
+  margin:22px 0!important;
+  padding:18px!important;
+  border:1px solid rgba(255,204,0,.18)!important;
+  border-radius:16px!important;
+  background:linear-gradient(180deg,rgba(11,18,31,.96),rgba(5,9,16,.98))!important;
+  color:#dbe4f6!important;
+}
+.lio-g2-app .woocommerce-EditAccountForm legend,
+.lio-g2-app .woocommerce-MyAccount-content fieldset legend{
+  padding:0 10px!important;
+  color:var(--lio-g2-yellow)!important;
+  background:#07101c!important;
+  border-radius:999px!important;
+  font-weight:1000!important;
+  letter-spacing:.02em!important;
+}
+.lio-g2-app .woocommerce-EditAccountForm em,
+.lio-g2-app .woocommerce-EditAccountForm small,
+.lio-g2-app .woocommerce-EditAccountForm span,
+.lio-g2-app .woocommerce-MyAccount-content .woocommerce-form-row em{
+  color:#aeb8ca!important;
+}
+.lio-g2-app .show-password-input{
+  color:#111!important;
+  background:rgba(255,196,0,.92)!important;
+  border-radius:10px!important;
+  right:8px!important;
+}
+
+/* Business verification: override the plugin's old light/white inline panel skin. */
+.lio-g2-app .liog-verification-page{
+  max-width:980px!important;
+  margin:0 auto!important;
+  padding:0!important;
+}
+.lio-g2-app .liog-verification-shell{
+  border:1px solid rgba(255,204,0,.24)!important;
+  border-radius:18px!important;
+  overflow:hidden!important;
+  background:linear-gradient(180deg,rgba(9,15,26,.94),rgba(4,8,15,.98))!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.42)!important;
+}
+.lio-g2-app .liog-verification-header{
+  background:linear-gradient(135deg,rgba(255,196,0,.20),rgba(16,24,40,.96))!important;
+  border-bottom:1px solid rgba(255,204,0,.18)!important;
+  color:#eef3ff!important;
+}
+.lio-g2-app .liog-verification-header h1,
+.lio-g2-app .liog-verification-header p{
+  color:#eef3ff!important;
+}
+.lio-g2-app .liog-verification-body{
+  background:transparent!important;
+}
+.lio-g2-app .liog-verification-card,
+.lio-g2-app .liog-status-card{
+  background:linear-gradient(180deg,rgba(13,19,31,.95),rgba(7,11,20,.98))!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  color:#dbe4f6!important;
+  box-shadow:none!important;
+}
+.lio-g2-app .liog-verification-card h3,
+.lio-g2-app .liog-verification-field label{
+  color:#eef3ff!important;
+}
+.lio-g2-app .liog-verification-note,
+.lio-g2-app .liog-side-list,
+.lio-g2-app .liog-side-list li{
+  color:#aeb8ca!important;
+}
+.lio-g2-app .liog-status-pill{
+  background:rgba(255,196,0,.14)!important;
+  color:var(--lio-g2-yellow)!important;
+  border:1px solid rgba(255,196,0,.24)!important;
+}
+.lio-g2-app .liog-verification-field .input-text,
+.lio-g2-app .liog-verification-field textarea,
+.lio-g2-app .liog-verification-field select,
+.lio-g2-app .liog-verification-field input[type="file"]{
+  background:#0b1220!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:12px!important;
+}
+.lio-g2-app .liog-verification-field input[type="file"]::file-selector-button{
+  border:0!important;
+  border-radius:9px!important;
+  background:var(--lio-g2-yellow)!important;
+  color:#111!important;
+  font-weight:900!important;
+  padding:8px 11px!important;
+}
+.lio-g2-app .liog-primary-button,
+.lio-g2-app .liog-outline-button{
+  border-radius:11px!important;
+  font-weight:900!important;
+  text-decoration:none!important;
+}
+.lio-g2-app .liog-primary-button{
+  background:var(--lio-g2-yellow)!important;
+  color:#111!important;
+}
+.lio-g2-app .liog-outline-button{
+  background:rgba(255,255,255,.04)!important;
+  border:1px solid rgba(255,204,0,.24)!important;
+  color:var(--lio-g2-yellow)!important;
+}
+
+/* Wallet deposit page shell only. Do not restyle the payment popup/modal. */
+.lio-g2-app .liog-usdt-wrap > h2,
+.lio-g2-app .liog-usdt-wrap > h3{
+  color:var(--lio-g2-yellow)!important;
+}
+.lio-g2-app .liog-usdt-wrap > .liog-usdt-help,
+.lio-g2-app .liog-usdt-card .liog-usdt-help{
+  color:#aeb8ca!important;
+}
+.lio-g2-app .liog-usdt-card,
+.lio-g2-app .liog-usdt-form,
+.lio-g2-app .liog-usdt-panel{
+  background:linear-gradient(180deg,rgba(13,19,31,.86),rgba(5,9,16,.92))!important;
+  border-color:rgba(255,204,0,.18)!important;
+  color:#e9eefb!important;
+}
+.lio-g2-app .liog-usdt-status{
+  border-radius:999px!important;
+  padding:5px 10px!important;
+  font-weight:900!important;
+}
+
+@media (max-width: 700px){
+  .lio-g2-app .woocommerce-MyAccount-content table,
+  .lio-g2-app .woocommerce-MyAccount-content table thead,
+  .lio-g2-app .woocommerce-MyAccount-content table tbody,
+  .lio-g2-app .woocommerce-MyAccount-content table tr,
+  .lio-g2-app .woocommerce-MyAccount-content table th,
+  .lio-g2-app .woocommerce-MyAccount-content table td{
+    border-radius:0!important;
+  }
+}
+
+
+/* ==========================================================
+   V3 patch: profile dropdown + 5-field dashboard + dark text fixes
+   ========================================================== */
+.lio-g2-profile{cursor:pointer;list-style:none;}
+.lio-g2-profile::-webkit-details-marker{display:none;}
+.lio-g2-profile-menu{position:relative;}
+.lio-g2-profile-menu[open] .lio-g2-profile{background:rgba(255,196,0,.16);border-color:rgba(255,196,0,.42);}
+.lio-g2-profile-menu__dropdown{
+  position:absolute;
+  right:0;
+  top:calc(100% + 12px);
+  width:min(340px,calc(100vw - 24px));
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(255,204,0,.22);
+  background:linear-gradient(180deg,rgba(9,15,27,.98),rgba(5,9,16,.99));
+  box-shadow:0 24px 70px rgba(0,0,0,.52);
+  z-index:95;
+}
+.lio-g2-profile-menu__head{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08);}
+.lio-g2-profile-menu__avatar{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(255,196,0,.14);border:1px solid rgba(255,196,0,.22);color:var(--lio-g2-yellow);font-weight:1000;font-size:16px;flex-shrink:0;}
+.lio-g2-profile-menu__identity{display:flex;flex-direction:column;min-width:0;}
+.lio-g2-profile-menu__identity strong{color:#fff;font-weight:900;line-height:1.2;}
+.lio-g2-profile-menu__identity span{color:var(--lio-g2-muted);font-size:12px;word-break:break-word;}
+.lio-g2-profile-menu__meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:13px 0 12px;}
+.lio-g2-profile-menu__meta div{padding:10px 11px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(255,255,255,.03);}
+.lio-g2-profile-menu__meta span{display:block;color:var(--lio-g2-yellow);font-size:11px;font-weight:900;margin-bottom:4px;}
+.lio-g2-profile-menu__meta strong,.lio-g2-profile-menu__meta code{color:#eef3ff;font-weight:800;font-size:12px;word-break:break-word;}
+.lio-g2-profile-menu__items,.lio-g2-profile-menu__footer{display:grid;gap:6px;}
+.lio-g2-profile-menu__item{display:flex;align-items:center;gap:10px;padding:12px 12px;border-radius:12px;color:#dce4f7!important;text-decoration:none!important;font-weight:800;border:1px solid transparent;}
+.lio-g2-profile-menu__item:hover{background:rgba(255,255,255,.05);border-color:rgba(255,204,0,.14);color:#fff!important;}
+.lio-g2-profile-menu__item.is-logout{margin-top:6px;color:#ff8b99!important;}
+.lio-g2-profile-menu__item .dashicons{width:17px;height:17px;font-size:17px;color:var(--lio-g2-yellow);}
+.lio-g2-profile-menu__item.is-logout .dashicons{color:#ff8b99;}
+
+.lio-user-info-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));}
+.lio-info-v code,
+.lio-g2-profile-menu__meta code,
+.lio-g2-app code{display:inline-block;padding:3px 8px;border-radius:8px;background:#132033;color:#eef3ff;}
+
+.lio-g2-app ::placeholder{color:#7d8ba3!important;opacity:1;}
+.lio-g2-app .woocommerce-Price-amount,
+.lio-g2-app .amount{color:#eef3ff!important;}
+.lio-g2-app .liog-tab-panel > h2,
+.lio-g2-app .liog-tab-panel > h3,
+.lio-g2-app .liog-tab-panel > h4,
+.lio-g2-app .liog-tab-panel .woocommerce-form-row label,
+.lio-g2-app .liog-tab-panel label,
+.lio-g2-app .liog-tab-panel strong,
+.lio-g2-app .liog-tab-panel th{color:#eef3ff!important;}
+.lio-g2-app .liog-tab-panel p,
+.lio-g2-app .liog-tab-panel li,
+.lio-g2-app .liog-tab-panel td,
+.lio-g2-app .liog-tab-panel span,
+.lio-g2-app .liog-tab-panel small,
+.lio-g2-app .liog-tab-panel em{color:#c9d4e9;}
+.lio-g2-app .liog-tab-panel a{color:var(--lio-g2-yellow)!important;}
+
+/* Username checker dark-skin overrides */
+.lio-g2-app .liog-tab-panel .liog-uc-card,
+.lio-g2-app .liog-tab-panel .liog-uc-api-box,
+.lio-g2-app .liog-tab-panel .liog-uc-result-card,
+.lio-g2-app .liog-tab-panel .liog-uc-result-grid div,
+.lio-g2-app .liog-tab-panel .liog-uc-doc-card,
+.lio-g2-app .liog-tab-panel .liog-uc-snippet-card{
+  background:linear-gradient(180deg,rgba(13,19,31,.95),rgba(6,10,18,.98))!important;
+  border-color:rgba(255,204,0,.18)!important;
+  color:#dbe4f6!important;
+  box-shadow:none!important;
+}
+.lio-g2-app .liog-tab-panel .liog-uc-form label,
+.lio-g2-app .liog-tab-panel .liog-uc-result-head strong,
+.lio-g2-app .liog-tab-panel .liog-uc-api-box h3,
+.lio-g2-app .liog-tab-panel .liog-uc-doc-card h4,
+.lio-g2-app .liog-tab-panel .liog-uc-snippet-card h4,
+.lio-g2-app .liog-tab-panel .liog-uc-result-grid strong{color:#eef3ff!important;}
+.lio-g2-app .liog-tab-panel .liog-uc-result-head span,
+.lio-g2-app .liog-tab-panel .liog-uc-api-box p,
+.lio-g2-app .liog-tab-panel .liog-uc-list,
+.lio-g2-app .liog-tab-panel .liog-uc-muted,
+.lio-g2-app .liog-tab-panel .liog-uc-result-grid span{color:#aeb8ca!important;}
+.lio-g2-app .liog-tab-panel .liog-uc-form select,
+.lio-g2-app .liog-tab-panel .liog-uc-form input{
+  background:#0b1220!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.12)!important;
+}
+.lio-g2-app .liog-tab-panel .liog-uc-result-card.is-success{background:linear-gradient(180deg,rgba(8,54,36,.45),rgba(6,24,18,.96))!important;border-color:rgba(101,212,189,.3)!important;}
+.lio-g2-app .liog-tab-panel .liog-uc-result-card.is-error{background:linear-gradient(180deg,rgba(78,21,31,.42),rgba(29,9,14,.96))!important;border-color:rgba(255,102,119,.28)!important;}
+.lio-g2-app .liog-tab-panel .liog-uc-code,
+.lio-g2-app .liog-tab-panel .liog-uc-api-box code{background:#0b1220!important;color:#e2e8f0!important;}
+
+/* API keys, webhook, address/account details readability */
+.lio-g2-app .liog-tab-panel table.shop_table code,
+.lio-g2-app .liog-tab-panel .shop_table code{background:#132033!important;color:#eef3ff!important;}
+.lio-g2-app .liog-tab-panel .form-row,
+.lio-g2-app .liog-tab-panel .woocommerce-Addresses .woocommerce-Address address,
+.lio-g2-app .liog-tab-panel address{color:#d6deef!important;}
+.lio-g2-app .liog-tab-panel .woocommerce-Address-title h3,
+.lio-g2-app .liog-tab-panel .woocommerce-Addresses header,
+.lio-g2-app .liog-tab-panel .woocommerce-Address a{color:#eef3ff!important;}
+.lio-g2-app .liog-tab-panel .woocommerce-Address a.button,
+.lio-g2-app .liog-tab-panel .edit{color:#111!important;}
+
+@media (max-width: 860px){
+  .lio-g2-profile-menu__dropdown{right:-6px;}
+}
+@media (max-width: 560px){
+  .lio-g2-profile-menu__dropdown{width:min(320px,calc(100vw - 16px));right:-4px;padding:12px;}
+  .lio-g2-profile-menu__meta{grid-template-columns:1fr;}
+  .lio-g2-profile-menu__item{padding:11px 10px;}
+}
+
+
+/* ==========================================================
+   V5 patch: profile popup hidden-by-default, closed API menu, dark tables/wallet
+   ========================================================== */
+.lio-g2-profile-menu{position:relative;display:inline-flex;align-items:center;}
+.lio-g2-profile-menu__dropdown[hidden]{display:none!important;}
+.lio-g2-profile-menu.is-open .lio-g2-profile{background:rgba(255,196,0,.16)!important;border-color:rgba(255,196,0,.42)!important;}
+.lio-g2-profile-menu__dropdown{
+  position:absolute!important;
+  right:0!important;
+  top:calc(100% + 12px)!important;
+  width:min(340px,calc(100vw - 24px))!important;
+  padding:14px!important;
+  border-radius:18px!important;
+  border:1px solid rgba(255,204,0,.24)!important;
+  background:linear-gradient(180deg,rgba(9,15,27,.99),rgba(5,9,16,.995))!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.55)!important;
+  z-index:999!important;
+}
+.lio-g2-profile-menu__head{display:flex!important;align-items:center!important;gap:12px!important;padding-bottom:12px!important;border-bottom:1px solid rgba(255,255,255,.08)!important;}
+.lio-g2-profile-menu__avatar{width:46px!important;height:46px!important;border-radius:14px!important;display:flex!important;align-items:center!important;justify-content:center!important;background:rgba(255,196,0,.14)!important;border:1px solid rgba(255,196,0,.22)!important;color:var(--lio-g2-yellow)!important;font-weight:1000!important;font-size:16px!important;flex-shrink:0!important;}
+.lio-g2-profile-menu__identity{display:flex!important;flex-direction:column!important;min-width:0!important;}
+.lio-g2-profile-menu__identity strong{color:#fff!important;font-weight:900!important;line-height:1.2!important;}
+.lio-g2-profile-menu__identity span{color:var(--lio-g2-muted)!important;font-size:12px!important;word-break:break-word!important;}
+.lio-g2-profile-menu__meta{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;margin:13px 0 12px!important;}
+.lio-g2-profile-menu__meta div{padding:10px 11px!important;border:1px solid rgba(255,255,255,.07)!important;border-radius:14px!important;background:rgba(255,255,255,.03)!important;}
+.lio-g2-profile-menu__meta span{display:block!important;color:var(--lio-g2-yellow)!important;font-size:11px!important;font-weight:900!important;margin-bottom:4px!important;}
+.lio-g2-profile-menu__meta strong,.lio-g2-profile-menu__meta code{color:#eef3ff!important;font-weight:800!important;font-size:12px!important;word-break:break-word!important;}
+.lio-g2-profile-menu__items,.lio-g2-profile-menu__footer{display:grid!important;gap:6px!important;}
+.lio-g2-profile-menu__item{display:flex!important;align-items:center!important;gap:10px!important;padding:12px 12px!important;border-radius:12px!important;color:#dce4f7!important;text-decoration:none!important;font-weight:800!important;border:1px solid transparent!important;}
+.lio-g2-profile-menu__item:hover{background:rgba(255,255,255,.05)!important;border-color:rgba(255,204,0,.14)!important;color:#fff!important;}
+.lio-g2-profile-menu__item.is-logout{margin-top:6px!important;color:#ff8b99!important;}
+.lio-g2-profile-menu__item .dashicons{width:17px!important;height:17px!important;font-size:17px!important;color:var(--lio-g2-yellow)!important;}
+.lio-g2-profile-menu__item.is-logout .dashicons{color:#ff8b99!important;}
+
+/* Dashboard info card now has four details only. */
+.lio-user-info-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;align-items:start!important;}
+@media (max-width: 900px){.lio-user-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}
+@media (max-width: 560px){.lio-user-info-grid{grid-template-columns:1fr!important;}}
+
+/* Force all account/plugin tables away from white backgrounds. */
+.lio-g2-app .woocommerce-MyAccount-content table,
+.lio-g2-app .woocommerce-MyAccount-content table.shop_table,
+.lio-g2-app .liog-tab-panel table,
+.lio-g2-app .liog-tab-panel table.shop_table,
+.lio-g2-app .woo-wallet-transactions-table{
+  background:#07101c!important;
+  border:1px solid rgba(255,204,0,.22)!important;
+  border-radius:16px!important;
+  overflow:hidden!important;
+  color:#dbe4f6!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table tr,
+.lio-g2-app .woocommerce-MyAccount-content table tbody,
+.lio-g2-app .liog-tab-panel table tr,
+.lio-g2-app .liog-tab-panel table tbody{background:#07101c!important;}
+.lio-g2-app .woocommerce-MyAccount-content table th,
+.lio-g2-app .liog-tab-panel table th,
+.lio-g2-app .woo-wallet-transactions-table th{
+  background:#1b2637!important;
+  color:#eef3ff!important;
+  border-color:rgba(255,255,255,.05)!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table td,
+.lio-g2-app .liog-tab-panel table td,
+.lio-g2-app .woo-wallet-transactions-table td{
+  background:#07101c!important;
+  color:#d6deef!important;
+  border-color:rgba(255,255,255,.06)!important;
+}
+.lio-g2-app .woocommerce-MyAccount-content table td code,
+.lio-g2-app .liog-tab-panel table td code,
+.lio-g2-app code{
+  background:#132033!important;
+  color:#eef3ff!important;
+  border:1px solid rgba(255,255,255,.07)!important;
+}
+
+/* TeraWallet default template dark skin, without changing its PHP logic. */
+.lio-g2-app .woo-wallet-my-wallet-container,
+.lio-g2-app .woo-wallet-content-area,
+.lio-g2-app .woo-wallet-transactions-list,
+.lio-g2-app .woo-wallet-form-wrapper{
+  background:linear-gradient(180deg,rgba(13,19,31,.92),rgba(5,9,16,.97))!important;
+  border:1px solid rgba(255,204,0,.18)!important;
+  border-radius:18px!important;
+  color:#e9eefb!important;
+  box-shadow:0 14px 44px rgba(0,0,0,.24)!important;
+}
+.lio-g2-app .woo-wallet-header h2,
+.lio-g2-app .woo-wallet-section-title,
+.lio-g2-app .woo-wallet-transactions-list h3{color:var(--lio-g2-yellow)!important;}
+.lio-g2-app .woo-wallet-header p,
+.lio-g2-app .woo-wallet-transactions-list p{color:#aeb8ca!important;}
+.lio-g2-app .woo-wallet-balance-card{
+  background:linear-gradient(180deg,rgba(20,22,9,.80),rgba(7,10,16,.94))!important;
+  border:1px solid rgba(255,204,0,.34)!important;
+  border-radius:18px!important;
+  color:#eef3ff!important;
+}
+.lio-g2-app .woo-wallet-balance-card h3{color:var(--lio-g2-yellow)!important;}
+.lio-g2-app .woo-wallet-price,
+.lio-g2-app .woo-wallet-price .amount,
+.lio-g2-app .woo-wallet-price .woocommerce-Price-amount{color:#fff!important;}
+.lio-g2-app .woo-wallet-nav-tabs{background:#101828!important;border-radius:14px!important;overflow:hidden!important;border:1px solid rgba(255,255,255,.08)!important;}
+.lio-g2-app .woo-wallet-nav-tab{background:#101828!important;color:#dce4f7!important;text-decoration:none!important;border-color:rgba(255,255,255,.08)!important;}
+.lio-g2-app .woo-wallet-nav-tab.active,
+.lio-g2-app .woo-wallet-nav-tab:hover{background:var(--lio-g2-yellow)!important;color:#111!important;}
+.lio-g2-app .woo-wallet-content-area{padding:18px!important;margin-top:18px!important;}
+.lio-g2-app .woo-wallet-transactions-list > p,
+.lio-g2-app .woo-wallet-content-area > p{background:#07101c!important;color:#aeb8ca!important;border-radius:14px!important;}
+
+/* Keep API Integration dropdown closed on page load even when its tab is active. */
+.lio-g2-nav__group:not([open]) .lio-g2-nav__submenu{display:none!important;}
+.lio-g2-nav__group[open] .lio-g2-nav__submenu{display:grid!important;}
+
+@media (max-width: 560px){
+  .lio-g2-profile-menu__dropdown{right:-4px!important;width:min(320px,calc(100vw - 16px))!important;padding:12px!important;}
+  .lio-g2-profile-menu__meta{grid-template-columns:1fr!important;}
+}
+
+
+/* ==========================================================
+   V8 patch: logo alignment / header polish
+   ========================================================== */
+.lio-g2-header__top{
+  width:min(1280px,calc(100% - 32px));
+}
+.lio-g2-brand{
+  flex:0 0 auto;
+  max-width:min(280px,46vw);
+}
+.lio-g2-brand__logo,
+.lio-g2-brand__logo .custom-logo-link,
+.lio-g2-brand .custom-logo-link{
+  display:block;
+  line-height:0;
+}
+.lio-g2-brand__logo img,
+.lio-g2-brand img,
+.lio-g2-brand .custom-logo{
+  max-width:min(240px,42vw)!important;
+  max-height:52px!important;
+  width:auto!important;
+  height:auto!important;
+  object-fit:contain;
+}
+@media (max-width: 860px){
+  .lio-g2-header__top{width:min(100%,calc(100% - 20px));}
+  .lio-g2-brand{max-width:58vw;}
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{max-width:min(200px,54vw)!important;max-height:44px!important;}
+}
+
+
+/* ==========================================================
+   V13 tiny patch: mobile header balance fit + desktop logo center
+   Only header/logo CSS. No backend, wallet, dashboard data changes.
+   ========================================================== */
+@media (min-width: 861px){
+  .lio-g2-header__top{
+    position:relative!important;
+    justify-content:center!important;
+    min-height:74px!important;
+  }
+  .lio-g2-brand{
+    position:absolute!important;
+    left:50%!important;
+    top:50%!important;
+    transform:translate(-50%,-50%)!important;
+    margin:0!important;
+    max-width:260px!important;
+    justify-content:center!important;
+    z-index:1!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    max-width:230px!important;
+    max-height:54px!important;
+  }
+  .lio-g2-actions{
+    margin-left:auto!important;
+    position:relative!important;
+    z-index:2!important;
+  }
+}
+
+@media (max-width: 860px){
+  .lio-g2-header__top{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:8px!important;
+    min-height:58px!important;
+    padding:7px 0!important;
+  }
+  .lio-g2-brand{
+    min-width:0!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    max-width:min(168px,44vw)!important;
+    max-height:38px!important;
+  }
+  .lio-g2-actions{
+    min-width:0!important;
+    gap:6px!important;
+    justify-content:flex-end!important;
+  }
+  .lio-g2-balance{
+    max-width:min(190px,43vw)!important;
+    min-height:38px!important;
+    padding:6px 8px!important;
+    gap:6px!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    flex-shrink:1!important;
+  }
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    display:inline-block!important;
+    max-width:calc(43vw - 48px)!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-size:13px!important;
+    line-height:1!important;
+  }
+  .lio-g2-coin{
+    width:22px!important;
+    height:22px!important;
+    min-width:22px!important;
+    font-size:11px!important;
+  }
+  .lio-g2-profile,
+  .lio-g2-mobile-toggle{
+    width:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+  }
+}
+
+@media (max-width: 420px){
+  .lio-g2-header__top{
+    width:calc(100% - 12px)!important;
+    gap:5px!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    max-width:min(146px,39vw)!important;
+    max-height:34px!important;
+  }
+  .lio-g2-balance{
+    max-width:43vw!important;
+    padding:5px 7px!important;
+  }
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    max-width:calc(43vw - 42px)!important;
+    font-size:12px!important;
+  }
+}
+
+
+/* ==========================================================
+   V12 patch: tighter mobile dashboard cards only
+   ========================================================== */
+@media (max-width: 1024px){
+  .lio-history-card{
+    overflow:hidden!important;
+    padding:12px 10px!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+  .lio-history-card__title{
+    font-size:15px!important;
+    line-height:1.25!important;
+    margin-bottom:10px!important;
+  }
+  .lio-g2-table--dashboard,
+  .lio-g2-table--dashboard thead,
+  .lio-g2-table--dashboard tbody,
+  .lio-g2-table--dashboard tr,
+  .lio-g2-table--dashboard th,
+  .lio-g2-table--dashboard td{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+  }
+  .lio-g2-table--dashboard{
+    border:0!important;
+    background:transparent!important;
+    overflow:visible!important;
+  }
+  .lio-g2-table--dashboard thead{display:none!important;}
+  .lio-g2-table--dashboard tbody tr{
+    margin:0 0 10px!important;
+    border:1px solid rgba(255,204,0,.18)!important;
+    border-radius:14px!important;
+    overflow:hidden!important;
+    background:#07101c!important;
+  }
+  .lio-g2-table--dashboard tbody td{
+    display:grid!important;
+    grid-template-columns:72px minmax(0,1fr)!important;
+    gap:8px!important;
+    align-items:start!important;
+    padding:8px 9px!important;
+    border-top:1px solid rgba(255,255,255,.06)!important;
+    color:#e4ebfa!important;
+    font-size:12px!important;
+    line-height:1.28!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+    word-break:break-word!important;
+  }
+  .lio-g2-table--dashboard tbody td:first-child{border-top:0!important;}
+  .lio-g2-table--dashboard tbody td:before{
+    content:attr(data-label);
+    color:var(--lio-g2-yellow)!important;
+    font-weight:900!important;
+    font-size:10px!important;
+    line-height:1.15!important;
+    text-transform:none!important;
+    white-space:normal!important;
+  }
+  .lio-g2-table--dashboard .lio-pill{
+    width:max-content!important;
+    max-width:100%!important;
+    padding:4px 7px!important;
+    font-size:10px!important;
+    line-height:1.1!important;
+  }
+  .lio-g2-table--dashboard .lio-empty-row{
+    display:block!important;
+    text-align:center!important;
+    padding:12px!important;
+  }
+  .lio-g2-table--dashboard .lio-empty-row:before{display:none!important;content:''!important;}
+}
+
+@media (max-width: 430px){
+  .lio-g2-main{width:calc(100% - 12px)!important;}
+  .lio-history-card{padding:10px 6px!important;border-radius:12px!important;}
+  .lio-g2-table--dashboard tbody td{
+    grid-template-columns:60px minmax(0,1fr)!important;
+    gap:6px!important;
+    padding:7px 8px!important;
+    font-size:11px!important;
+    line-height:1.22!important;
+  }
+  .lio-g2-table--dashboard tbody td:before{font-size:9px!important;}
+}
+
+
+
+/* ==========================================================
+   V14 patch: desktop logo left restore, keep mobile balance fit
+   ========================================================== */
+@media (min-width: 861px){
+  .lio-g2-header__top{
+    position:static!important;
+    justify-content:space-between!important;
+    min-height:72px!important;
+  }
+  .lio-g2-brand{
+    position:static!important;
+    left:auto!important;
+    top:auto!important;
+    transform:none!important;
+    margin:0!important;
+    max-width:260px!important;
+    justify-content:flex-start!important;
+    z-index:2!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    max-width:220px!important;
+    max-height:52px!important;
+  }
+  .lio-g2-actions{
+    margin-left:auto!important;
+    position:relative!important;
+    z-index:2!important;
+  }
+}
+
+
+/* V15: keep wallet currency + amount on one line everywhere */
+.lio-g2-balance,
+.lio-g2-profile-menu__meta strong,
+.lio-wallet-balance-card__value{
+  white-space:nowrap!important;
+}
+.lio-g2-balance > span:last-child,
+.lio-g2-balance .woocommerce-Price-amount,
+.lio-g2-balance .amount,
+.lio-g2-profile-menu__meta strong .woocommerce-Price-amount,
+.lio-g2-profile-menu__meta strong .amount,
+.lio-stat-card__value .woocommerce-Price-amount,
+.lio-stat-card__value .amount,
+.lio-stat-card__sub .woocommerce-Price-amount,
+.lio-stat-card__sub .amount{
+  display:inline-flex!important;
+  align-items:baseline!important;
+  gap:2px!important;
+  white-space:nowrap!important;
+  line-height:1!important;
+}
+.lio-g2-balance .woocommerce-Price-currencySymbol,
+.lio-g2-profile-menu__meta .woocommerce-Price-currencySymbol,
+.lio-stat-card__value .woocommerce-Price-currencySymbol,
+.lio-stat-card__sub .woocommerce-Price-currencySymbol{
+  display:inline!important;
+  margin-right:2px!important;
+}
+@media (max-width: 860px){
+  .lio-g2-balance{max-width:min(174px,42vw)!important;}
+  .lio-g2-balance > span:last-child{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+}
+
+
+/* ==========================================================
+   V16 patch: desktop logo vertical align with wallet balance
+   ========================================================== */
+@media (min-width: 861px){
+  .lio-g2-header__top{
+    align-items:center!important;
+    padding-top:10px!important;
+    padding-bottom:10px!important;
+  }
+  .lio-g2-brand{
+    display:flex!important;
+    align-items:center!important;
+    min-height:52px!important;
+  }
+  .lio-g2-brand__logo,
+  .lio-g2-brand__logo .custom-logo-link,
+  .lio-g2-brand .custom-logo-link{
+    display:flex!important;
+    align-items:center!important;
+    line-height:0!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    display:block!important;
+    object-fit:contain!important;
+    max-height:46px!important;
+    transform:translateY(4px)!important;
+  }
+  .lio-g2-actions{
+    align-items:center!important;
+  }
+}
+
+
+/* ==========================================================
+   V18 FINAL HEADER PATCH — G2Bulk-like header alignment
+   - Desktop: logo left and vertically centered with wallet/profile.
+   - Mobile: hamburger left, logo center, wallet/profile right.
+   - CSS only; does not remove any PHP/dashboard/wallet code.
+   ========================================================== */
+
+@media (min-width: 861px){
+  .lio-g2-header__top{
+    position:relative!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    width:min(1180px,calc(100% - 32px))!important;
+    min-height:74px!important;
+    padding:0!important;
+  }
+  .lio-g2-brand{
+    position:static!important;
+    inset:auto!important;
+    transform:none!important;
+    margin:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    min-height:74px!important;
+    max-width:260px!important;
+    line-height:0!important;
+    z-index:2!important;
+  }
+  .lio-g2-brand__logo,
+  .lio-g2-brand__logo .custom-logo-link,
+  .lio-g2-brand .custom-logo-link{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    line-height:0!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    display:block!important;
+    width:auto!important;
+    height:auto!important;
+    max-width:230px!important;
+    max-height:48px!important;
+    object-fit:contain!important;
+    transform:none!important;
+    margin:0!important;
+  }
+  .lio-g2-actions{
+    position:static!important;
+    transform:none!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:10px!important;
+    margin-left:auto!important;
+    min-height:74px!important;
+    z-index:3!important;
+  }
+}
+
+/* Mobile header: same idea as G2Bulk mobile */
+@media (max-width: 860px){
+  .lio-g2-header__top{
+    position:relative!important;
+    display:grid!important;
+    grid-template-columns:44px minmax(0,1fr) auto auto!important;
+    align-items:center!important;
+    column-gap:8px!important;
+    width:calc(100% - 18px)!important;
+    min-height:58px!important;
+    padding:6px 0!important;
+    margin:0 auto!important;
+  }
+  .lio-g2-actions{
+    display:contents!important;
+  }
+  .lio-g2-mobile-toggle{
+    grid-column:1!important;
+    grid-row:1!important;
+    justify-self:start!important;
+    order:0!important;
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    margin:0!important;
+    position:static!important;
+    transform:none!important;
+  }
+  .lio-g2-brand{
+    grid-column:2!important;
+    grid-row:1!important;
+    justify-self:center!important;
+    align-self:center!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    min-height:40px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    overflow:hidden!important;
+    line-height:0!important;
+    position:static!important;
+    transform:none!important;
+    margin:0!important;
+  }
+  .lio-g2-brand__logo,
+  .lio-g2-brand__logo .custom-logo-link,
+  .lio-g2-brand .custom-logo-link{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-width:0!important;
+    width:100%!important;
+    line-height:0!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    display:block!important;
+    width:auto!important;
+    height:auto!important;
+    max-width:min(220px,54vw)!important;
+    max-height:38px!important;
+    object-fit:contain!important;
+    transform:none!important;
+    margin:0 auto!important;
+  }
+  .lio-g2-balance{
+    grid-column:3!important;
+    grid-row:1!important;
+    justify-self:end!important;
+    align-self:center!important;
+    min-width:0!important;
+    max-width:min(150px,34vw)!important;
+    min-height:40px!important;
+    padding:6px 8px!important;
+    gap:6px!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    flex:0 1 auto!important;
+    margin:0!important;
+  }
+  .lio-g2-balance > span:last-child{
+    display:block!important;
+    min-width:0!important;
+    max-width:96px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    line-height:1!important;
+    color:inherit!important;
+    visibility:visible!important;
+  }
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    display:inline-flex!important;
+    align-items:baseline!important;
+    flex-wrap:nowrap!important;
+    max-width:96px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-size:12.5px!important;
+    line-height:1!important;
+    color:inherit!important;
+    visibility:visible!important;
+  }
+  .lio-g2-balance .woocommerce-Price-currencySymbol{
+    display:inline!important;
+    flex:0 0 auto!important;
+    margin-right:2px!important;
+  }
+  .lio-g2-coin{
+    flex:0 0 23px!important;
+    width:23px!important;
+    min-width:23px!important;
+    height:23px!important;
+    font-size:11px!important;
+  }
+  .lio-g2-profile-menu{
+    grid-column:4!important;
+    grid-row:1!important;
+    justify-self:end!important;
+    align-self:center!important;
+    position:relative!important;
+    margin:0!important;
+  }
+  .lio-g2-profile{
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    margin:0!important;
+  }
+  .lio-g2-profile-menu__dropdown{
+    right:0!important;
+    top:calc(100% + 10px)!important;
+    width:min(320px,calc(100vw - 18px))!important;
+  }
+}
+
+@media (max-width: 390px){
+  .lio-g2-header__top{
+    grid-template-columns:40px minmax(0,1fr) auto auto!important;
+    column-gap:5px!important;
+    width:calc(100% - 12px)!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    max-width:min(190px,48vw)!important;
+    max-height:34px!important;
+  }
+  .lio-g2-balance{
+    max-width:33vw!important;
+    padding:5px 6px!important;
+  }
+  .lio-g2-balance > span:last-child,
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    max-width:76px!important;
+    font-size:11.5px!important;
+  }
+  .lio-g2-coin{
+    width:21px!important;
+    min-width:21px!important;
+    height:21px!important;
+  }
+  .lio-g2-profile,
+  .lio-g2-mobile-toggle{
+    width:38px!important;
+    min-width:38px!important;
+    height:38px!important;
+    min-height:38px!important;
+  }
+}
+
+
+/* ==========================================================
+   V19 FINAL SAFE HEADER PATCH
+   Mobile: menu left, logo center, balance/profile right.
+   Desktop: logo left and vertically centered with wallet balance.
+   CSS-only: wallet/category/product logic untouched.
+   ========================================================== */
+@media (min-width:861px){
+  .lio-g2-header__top{position:relative!important;display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:74px!important;padding-top:0!important;padding-bottom:0!important;}
+  .lio-g2-brand{position:static!important;left:auto!important;top:auto!important;transform:none!important;margin:0!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;min-height:74px!important;max-width:260px!important;line-height:0!important;overflow:visible!important;}
+  .lio-g2-brand__logo,.lio-g2-brand__logo .custom-logo-link,.lio-g2-brand .custom-logo-link{display:flex!important;align-items:center!important;justify-content:flex-start!important;min-height:74px!important;line-height:0!important;}
+  .lio-g2-brand__logo img,.lio-g2-brand img,.lio-g2-brand .custom-logo{display:block!important;max-width:230px!important;max-height:48px!important;width:auto!important;height:auto!important;object-fit:contain!important;transform:none!important;margin:0!important;opacity:1!important;visibility:visible!important;}
+  .lio-g2-actions{position:relative!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:10px!important;min-height:74px!important;margin-left:auto!important;}
+}
+@media (max-width:860px){
+  .lio-g2-header__top{position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;width:calc(100% - 14px)!important;min-height:58px!important;padding:6px 0!important;margin:0 auto!important;overflow:visible!important;}
+  .lio-g2-brand{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;z-index:2!important;display:flex!important;align-items:center!important;justify-content:center!important;width:min(160px,36vw)!important;max-width:min(160px,36vw)!important;min-width:0!important;min-height:42px!important;overflow:visible!important;line-height:0!important;margin:0!important;pointer-events:auto!important;}
+  .lio-g2-brand__logo,.lio-g2-brand__logo .custom-logo-link,.lio-g2-brand .custom-logo-link{display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;min-width:0!important;line-height:0!important;overflow:visible!important;}
+  .lio-g2-brand__logo img,.lio-g2-brand img,.lio-g2-brand .custom-logo{display:block!important;width:auto!important;height:auto!important;max-width:100%!important;max-height:36px!important;object-fit:contain!important;transform:none!important;margin:0 auto!important;opacity:1!important;visibility:visible!important;}
+  .lio-g2-actions{position:relative!important;z-index:3!important;width:100%!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:7px!important;min-width:0!important;margin:0!important;overflow:visible!important;}
+  .lio-g2-mobile-toggle{position:absolute!important;left:0!important;top:50%!important;transform:translateY(-50%)!important;z-index:4!important;width:40px!important;min-width:40px!important;height:40px!important;min-height:40px!important;padding:0!important;margin:0!important;flex:0 0 40px!important;}
+  .lio-g2-balance{position:relative!important;z-index:4!important;min-width:0!important;max-width:min(150px,36vw)!important;min-height:40px!important;padding:6px 8px!important;gap:6px!important;overflow:hidden!important;white-space:nowrap!important;flex:0 1 auto!important;margin:0!important;}
+  .lio-g2-balance>span:last-child{display:block!important;min-width:0!important;max-width:94px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;line-height:1!important;color:inherit!important;visibility:visible!important;}
+  .lio-g2-balance .woocommerce-Price-amount,.lio-g2-balance .amount{display:inline-flex!important;align-items:baseline!important;flex-wrap:nowrap!important;max-width:94px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:12.5px!important;line-height:1!important;color:inherit!important;visibility:visible!important;}
+  .lio-g2-balance .woocommerce-Price-currencySymbol{display:inline!important;flex:0 0 auto!important;margin-right:2px!important;}
+  .lio-g2-coin{flex:0 0 23px!important;width:23px!important;min-width:23px!important;height:23px!important;font-size:11px!important;}
+  .lio-g2-profile-menu{position:relative!important;z-index:4!important;flex:0 0 40px!important;margin:0!important;}
+  .lio-g2-profile{width:40px!important;min-width:40px!important;height:40px!important;min-height:40px!important;padding:0!important;margin:0!important;}
+  .lio-g2-profile-menu__dropdown{right:0!important;top:calc(100% + 10px)!important;width:min(320px,calc(100vw - 18px))!important;}
+}
+@media (max-width:390px){
+  .lio-g2-header__top{width:calc(100% - 10px)!important;}
+  .lio-g2-brand{width:min(136px,34vw)!important;max-width:min(136px,34vw)!important;}
+  .lio-g2-brand__logo img,.lio-g2-brand img,.lio-g2-brand .custom-logo{max-height:32px!important;}
+  .lio-g2-actions{gap:5px!important;}
+  .lio-g2-balance{max-width:35vw!important;padding:5px 6px!important;}
+  .lio-g2-balance>span:last-child,.lio-g2-balance .woocommerce-Price-amount,.lio-g2-balance .amount{max-width:72px!important;font-size:11.5px!important;}
+  .lio-g2-coin{width:21px!important;min-width:21px!important;height:21px!important;}
+  .lio-g2-profile,.lio-g2-mobile-toggle{width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;}
+}
+
+
+/* ==========================================================
+   V20 FINAL HEADER FIX
+   Mobile layout uses real grid columns:
+   menu | centered logo | balance/profile.
+   This avoids logo being hidden under the action row.
+   No wallet/dashboard/product/API logic touched.
+   ========================================================== */
+.lio-g2-mobile-toggle--standalone{
+  display:none!important;
+}
+
+@media (min-width:861px){
+  .lio-g2-mobile-toggle--standalone{display:none!important;}
+  .lio-g2-actions > .lio-g2-mobile-toggle:not(.lio-g2-mobile-toggle--standalone){
+    display:none!important;
+  }
+  .lio-g2-header__top{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+  }
+  .lio-g2-brand{
+    position:static!important;
+    transform:none!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+  }
+  .lio-g2-actions{
+    position:relative!important;
+    margin-left:auto!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+  }
+}
+
+@media (max-width:860px){
+  .lio-g2-header__top{
+    position:relative!important;
+    display:grid!important;
+    grid-template-columns:42px minmax(0,1fr) auto!important;
+    align-items:center!important;
+    justify-content:normal!important;
+    gap:7px!important;
+    width:calc(100% - 14px)!important;
+    min-height:58px!important;
+    padding:7px 0!important;
+    margin:0 auto!important;
+    overflow:visible!important;
+  }
+
+  .lio-g2-mobile-toggle--standalone{
+    grid-column:1!important;
+    display:inline-flex!important;
+    position:static!important;
+    left:auto!important;
+    top:auto!important;
+    transform:none!important;
+    z-index:5!important;
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    margin:0!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+
+  .lio-g2-actions > .lio-g2-mobile-toggle:not(.lio-g2-mobile-toggle--standalone){
+    display:none!important;
+  }
+
+  .lio-g2-brand{
+    grid-column:2!important;
+    position:static!important;
+    left:auto!important;
+    top:auto!important;
+    transform:none!important;
+    z-index:4!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    min-height:40px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    overflow:visible!important;
+    line-height:0!important;
+    margin:0!important;
+    padding:0!important;
+    opacity:1!important;
+    visibility:visible!important;
+  }
+
+  .lio-g2-brand__logo,
+  .lio-g2-brand__logo .custom-logo-link,
+  .lio-g2-brand .custom-logo-link{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    line-height:0!important;
+    overflow:visible!important;
+    opacity:1!important;
+    visibility:visible!important;
+  }
+
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    display:block!important;
+    width:auto!important;
+    height:auto!important;
+    max-width:min(148px,100%)!important;
+    max-height:38px!important;
+    object-fit:contain!important;
+    transform:none!important;
+    margin:0 auto!important;
+    opacity:1!important;
+    visibility:visible!important;
+    filter:none!important;
+  }
+
+  .lio-g2-actions{
+    grid-column:3!important;
+    position:static!important;
+    z-index:4!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:100%!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:6px!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+  }
+
+  .lio-g2-balance{
+    position:static!important;
+    min-width:0!important;
+    max-width:min(152px,43vw)!important;
+    min-height:40px!important;
+    padding:6px 8px!important;
+    gap:6px!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    flex:0 1 auto!important;
+    margin:0!important;
+  }
+
+  .lio-g2-balance > span:last-child{
+    display:block!important;
+    min-width:0!important;
+    max-width:96px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    line-height:1!important;
+    color:inherit!important;
+    visibility:visible!important;
+  }
+
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    display:inline-flex!important;
+    align-items:baseline!important;
+    flex-wrap:nowrap!important;
+    max-width:96px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-size:12.5px!important;
+    line-height:1!important;
+    color:inherit!important;
+    visibility:visible!important;
+  }
+
+  .lio-g2-balance .woocommerce-Price-currencySymbol{
+    display:inline!important;
+    flex:0 0 auto!important;
+    margin-right:2px!important;
+  }
+
+  .lio-g2-coin{
+    flex:0 0 23px!important;
+    width:23px!important;
+    min-width:23px!important;
+    height:23px!important;
+    font-size:11px!important;
+  }
+
+  .lio-g2-profile-menu{
+    position:relative!important;
+    z-index:5!important;
+    flex:0 0 40px!important;
+    margin:0!important;
+  }
+
+  .lio-g2-profile{
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    margin:0!important;
+  }
+
+  .lio-g2-profile-menu__dropdown{
+    right:0!important;
+    top:calc(100% + 10px)!important;
+    width:min(320px,calc(100vw - 18px))!important;
+  }
+}
+
+@media (max-width:390px){
+  .lio-g2-header__top{
+    grid-template-columns:40px minmax(0,1fr) auto!important;
+    gap:5px!important;
+    width:calc(100% - 10px)!important;
+  }
+
+  .lio-g2-mobile-toggle--standalone,
+  .lio-g2-profile{
+    width:38px!important;
+    min-width:38px!important;
+    height:38px!important;
+    min-height:38px!important;
+  }
+
+  .lio-g2-profile-menu{
+    flex-basis:38px!important;
+  }
+
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    max-width:min(128px,100%)!important;
+    max-height:34px!important;
+  }
+
+  .lio-g2-actions{gap:5px!important;}
+
+  .lio-g2-balance{
+    max-width:41vw!important;
+    padding:5px 6px!important;
+  }
+
+  .lio-g2-balance > span:last-child,
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    max-width:74px!important;
+    font-size:11.5px!important;
+  }
+
+  .lio-g2-coin{
+    width:21px!important;
+    min-width:21px!important;
+    height:21px!important;
+  }
+}
+
+
+/* ==========================================================
+   V21 HEADER HARD FIX
+   Mobile header is fixed with absolute three-zone layout:
+   left hamburger | true centered logo | right balance/profile.
+   This overrides previous V18/V19/V20 mobile header attempts only.
+   ========================================================== */
+@media (max-width:860px){
+  .lio-g2-header__top{
+    position:relative!important;
+    display:block!important;
+    width:100%!important;
+    min-height:66px!important;
+    height:66px!important;
+    padding:0 8px!important;
+    margin:0!important;
+    overflow:visible!important;
+    box-sizing:border-box!important;
+  }
+
+  .lio-g2-mobile-toggle--standalone{
+    display:inline-flex!important;
+    position:absolute!important;
+    left:8px!important;
+    top:50%!important;
+    transform:translateY(-50%)!important;
+    z-index:20!important;
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    margin:0!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+
+  .lio-g2-actions > .lio-g2-mobile-toggle:not(.lio-g2-mobile-toggle--standalone){
+    display:none!important;
+  }
+
+  .lio-g2-brand{
+    display:flex!important;
+    position:absolute!important;
+    left:50%!important;
+    top:50%!important;
+    transform:translate(-50%,-50%)!important;
+    z-index:10!important;
+    width:min(190px,38vw)!important;
+    max-width:min(190px,38vw)!important;
+    min-width:0!important;
+    height:44px!important;
+    min-height:44px!important;
+    align-items:center!important;
+    justify-content:center!important;
+    padding:0!important;
+    margin:0!important;
+    overflow:visible!important;
+    opacity:1!important;
+    visibility:visible!important;
+    line-height:0!important;
+    pointer-events:auto!important;
+  }
+
+  .lio-g2-brand__logo,
+  .lio-g2-brand__logo .custom-logo-link,
+  .lio-g2-brand .custom-logo-link{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:100%!important;
+    height:100%!important;
+    max-width:100%!important;
+    overflow:visible!important;
+    opacity:1!important;
+    visibility:visible!important;
+    line-height:0!important;
+  }
+
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    display:block!important;
+    width:auto!important;
+    height:auto!important;
+    max-width:100%!important;
+    max-height:42px!important;
+    object-fit:contain!important;
+    transform:none!important;
+    margin:0 auto!important;
+    opacity:1!important;
+    visibility:visible!important;
+    filter:none!important;
+  }
+
+  .lio-g2-actions{
+    display:flex!important;
+    position:absolute!important;
+    right:8px!important;
+    top:50%!important;
+    transform:translateY(-50%)!important;
+    z-index:21!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:calc(50vw - 14px)!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:6px!important;
+    padding:0!important;
+    margin:0!important;
+    overflow:visible!important;
+  }
+
+  .lio-g2-balance{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    position:static!important;
+    flex:0 1 auto!important;
+    width:auto!important;
+    min-width:40px!important;
+    max-width:min(145px,36vw)!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:6px 8px!important;
+    gap:6px!important;
+    margin:0!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+  }
+
+  .lio-g2-balance > span:last-child{
+    display:block!important;
+    min-width:0!important;
+    max-width:94px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    line-height:1!important;
+    color:inherit!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    display:inline-flex!important;
+    align-items:baseline!important;
+    flex-wrap:nowrap!important;
+    max-width:94px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-size:12px!important;
+    line-height:1!important;
+    color:inherit!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+
+  .lio-g2-balance .woocommerce-Price-currencySymbol{
+    display:inline!important;
+    margin-right:2px!important;
+    flex:0 0 auto!important;
+  }
+
+  .lio-g2-coin{
+    flex:0 0 22px!important;
+    width:22px!important;
+    min-width:22px!important;
+    height:22px!important;
+    min-height:22px!important;
+    font-size:11px!important;
+  }
+
+  .lio-g2-profile-menu{
+    position:static!important;
+    flex:0 0 40px!important;
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    z-index:22!important;
+  }
+
+  .lio-g2-profile{
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    margin:0!important;
+  }
+}
+
+@media (max-width:430px){
+  .lio-g2-brand{
+    width:min(160px,35vw)!important;
+    max-width:min(160px,35vw)!important;
+  }
+  .lio-g2-brand__logo img,
+  .lio-g2-brand img,
+  .lio-g2-brand .custom-logo{
+    max-height:36px!important;
+  }
+  .lio-g2-actions{
+    right:6px!important;
+    gap:5px!important;
+    max-width:calc(50vw - 8px)!important;
+  }
+  .lio-g2-mobile-toggle--standalone{
+    left:6px!important;
+  }
+  .lio-g2-balance{
+    max-width:33vw!important;
+    padding:5px 6px!important;
+  }
+  .lio-g2-balance > span:last-child,
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    max-width:72px!important;
+    font-size:11px!important;
+  }
+  .lio-g2-profile,
+  .lio-g2-profile-menu,
+  .lio-g2-mobile-toggle--standalone{
+    width:38px!important;
+    min-width:38px!important;
+    height:38px!important;
+    min-height:38px!important;
+  }
+  .lio-g2-coin{
+    width:20px!important;
+    min-width:20px!important;
+    height:20px!important;
+  }
+}
+
+@media (max-width:360px){
+  .lio-g2-brand{
+    width:min(130px,32vw)!important;
+    max-width:min(130px,32vw)!important;
+  }
+  .lio-g2-balance{
+    max-width:30vw!important;
+  }
+  .lio-g2-balance > span:last-child,
+  .lio-g2-balance .woocommerce-Price-amount,
+  .lio-g2-balance .amount{
+    max-width:54px!important;
+    font-size:10px!important;
+  }
+}
+
+
+/* ==========================================================
+   V22 REAL MOBILE HEADER BAR
+   Uses a separate mobile-only header so older header CSS cannot hide logo.
+   Existing desktop header remains unchanged on PC.
+   ========================================================== */
+.lio-g2-mobile-bar-v22{
+  display:none;
+}
+
+@media (max-width: 860px){
+  .lio-g2-header{
+    overflow:visible!important;
+  }
+
+  .lio-g2-mobile-bar-v22{
+    display:grid!important;
+    grid-template-columns:42px minmax(118px,1fr) auto!important;
+    align-items:center!important;
+    gap:7px!important;
+    width:100%!important;
+    min-height:62px!important;
+    padding:7px 8px!important;
+    box-sizing:border-box!important;
+    position:relative!important;
+    z-index:200!important;
+    background:linear-gradient(90deg,rgba(17,27,45,.96),rgba(4,6,11,.97))!important;
+    border-bottom:1px solid rgba(255,255,255,.06)!important;
+  }
+
+  .lio-g2-header > .lio-g2-header__top{
+    display:none!important;
+  }
+
+  .lio-g2-mobile-toggle-v22{
+    display:inline-flex!important;
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    margin:0!important;
+    align-items:center!important;
+    justify-content:center!important;
+    position:static!important;
+    transform:none!important;
+  }
+
+  .lio-g2-mobile-logo-v22{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-width:0!important;
+    width:100%!important;
+    height:44px!important;
+    overflow:visible!important;
+    opacity:1!important;
+    visibility:visible!important;
+    text-decoration:none!important;
+    line-height:0!important;
+  }
+
+  .lio-g2-mobile-logo-v22__img,
+  .lio-g2-mobile-logo-v22__img .custom-logo-link{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:100%!important;
+    height:44px!important;
+    min-width:0!important;
+    overflow:visible!important;
+    opacity:1!important;
+    visibility:visible!important;
+    line-height:0!important;
+  }
+
+  .lio-g2-mobile-logo-v22 img,
+  .lio-g2-mobile-logo-v22 .custom-logo{
+    display:block!important;
+    width:auto!important;
+    height:auto!important;
+    max-width:min(185px,100%)!important;
+    max-height:42px!important;
+    object-fit:contain!important;
+    opacity:1!important;
+    visibility:visible!important;
+    transform:none!important;
+    margin:0 auto!important;
+    filter:none!important;
+  }
+
+  .lio-g2-mobile-logo-v22__text{
+    display:block!important;
+    color:var(--lio-g2-yellow)!important;
+    font-size:24px!important;
+    font-weight:1000!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+  }
+
+  .lio-g2-mobile-actions-v22{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:6px!important;
+    min-width:0!important;
+    width:auto!important;
+    max-width:calc(100vw - 190px)!important;
+    overflow:visible!important;
+  }
+
+  .lio-g2-mobile-balance-v22{
+    display:inline-flex!important;
+    flex:0 1 auto!important;
+    width:auto!important;
+    min-width:40px!important;
+    max-width:min(148px,38vw)!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:6px 8px!important;
+    gap:6px!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    margin:0!important;
+  }
+
+  .lio-g2-mobile-balance-v22 > span:last-child,
+  .lio-g2-mobile-balance-v22 .woocommerce-Price-amount,
+  .lio-g2-mobile-balance-v22 .amount{
+    display:inline-flex!important;
+    align-items:baseline!important;
+    max-width:92px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-size:12px!important;
+    line-height:1!important;
+    color:inherit!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+
+  .lio-g2-mobile-balance-v22 .woocommerce-Price-currencySymbol{
+    display:inline!important;
+    margin-right:2px!important;
+  }
+
+  .lio-g2-profile-menu-v22{
+    position:relative!important;
+    flex:0 0 40px!important;
+    width:40px!important;
+    height:40px!important;
+  }
+
+  .lio-g2-profile-menu-v22 .lio-g2-profile{
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+  }
+
+  .lio-g2-profile-menu-v22 .lio-g2-profile-menu__dropdown{
+    right:0!important;
+    left:auto!important;
+    top:calc(100% + 10px)!important;
+    width:min(320px,calc(100vw - 18px))!important;
+  }
+}
+
+@media (max-width:430px){
+  .lio-g2-mobile-bar-v22{
+    grid-template-columns:40px minmax(100px,1fr) auto!important;
+    gap:5px!important;
+    padding-left:6px!important;
+    padding-right:6px!important;
+  }
+
+  .lio-g2-mobile-logo-v22 img,
+  .lio-g2-mobile-logo-v22 .custom-logo{
+    max-width:min(150px,100%)!important;
+    max-height:36px!important;
+  }
+
+  .lio-g2-mobile-actions-v22{
+    gap:5px!important;
+    max-width:calc(100vw - 164px)!important;
+  }
+
+  .lio-g2-mobile-balance-v22{
+    max-width:34vw!important;
+    padding:5px 6px!important;
+  }
+
+  .lio-g2-mobile-balance-v22 > span:last-child,
+  .lio-g2-mobile-balance-v22 .woocommerce-Price-amount,
+  .lio-g2-mobile-balance-v22 .amount{
+    max-width:70px!important;
+    font-size:11px!important;
+  }
+
+  .lio-g2-mobile-toggle-v22,
+  .lio-g2-profile-menu-v22,
+  .lio-g2-profile-menu-v22 .lio-g2-profile{
+    width:38px!important;
+    min-width:38px!important;
+    height:38px!important;
+    min-height:38px!important;
+  }
+
+  .lio-g2-mobile-balance-v22 .lio-g2-coin{
+    width:20px!important;
+    min-width:20px!important;
+    height:20px!important;
+  }
+}
+
+/* === LioGames 2.6.0 panel polish: upgrade + Username API plan === */
+.lio-g2-app .liog-upgrade-page{--up-panel:#0c1322;--up-panel2:#101a2c;--up-line:rgba(255,255,255,.09);--up-text:#f7f9ff;--up-muted:#95a2b8;color:var(--up-text)}
+.lio-g2-app .liog-upgrade-hero{position:relative;overflow:hidden;margin:0 0 22px;padding:34px;border:1px solid rgba(139,92,246,.28);border-radius:24px;background:radial-gradient(circle at 85% 12%,rgba(34,211,238,.12),transparent 30%),radial-gradient(circle at 10% 20%,rgba(139,92,246,.22),transparent 34%),linear-gradient(145deg,#11182a,#090e1a)!important;box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.lio-g2-app .liog-upgrade-hero__inner{max-width:880px}.lio-g2-app .liog-upgrade-hero__icon{display:none!important}.lio-g2-app .liog-upgrade-hero__eyebrow{display:inline-block;margin-bottom:10px;color:#c4b5fd;font-size:11px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+.lio-g2-app .liog-upgrade-hero__title{margin:0!important;color:#fff!important;font-size:clamp(30px,5vw,46px)!important;line-height:1.05!important;letter-spacing:-.035em}.lio-g2-app .liog-upgrade-hero__tagline{max-width:740px;margin:15px 0!important;color:#aeb9cc!important;font-size:15px!important;line-height:1.7!important}
+.lio-g2-app .liog-upgrade-hero__chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.lio-g2-app .liog-upgrade-hero__chips span{padding:8px 10px;border:1px solid var(--up-line);border-radius:999px;background:rgba(255,255,255,.025);color:#cfd7e6;font-size:11px;font-weight:750}
+.lio-g2-app .liog-upgrade-hero__btn{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:44px!important;padding:0 17px!important;border:1px solid rgba(139,92,246,.42)!important;border-radius:11px!important;background:linear-gradient(135deg,#7c3aed,#db2777)!important;color:#fff!important;font-weight:850!important;text-decoration:none!important}.lio-g2-app .liog-upgrade-hero__period{margin-top:12px!important;color:#7f8ba1!important;font-size:11px!important}
+.lio-g2-app .liog-upgrade-cards{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px!important}.lio-g2-app .liog-upgrade-card{position:relative!important;overflow:hidden!important;min-width:0!important;padding:0!important;border:1px solid var(--up-line)!important;border-radius:20px!important;background:linear-gradient(150deg,var(--up-panel2),var(--up-panel))!important;box-shadow:none!important;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}.lio-g2-app .liog-upgrade-card:hover{transform:translateY(-3px);border-color:rgba(139,92,246,.35)!important;box-shadow:0 22px 50px rgba(0,0,0,.18)!important}.lio-g2-app .liog-upgrade-card--featured{border-color:rgba(236,72,153,.36)!important;background:linear-gradient(150deg,rgba(139,92,246,.12),rgba(236,72,153,.06)),var(--up-panel)!important}.lio-g2-app .liog-upgrade-card--current:after{content:"CURRENT";position:absolute;right:12px;top:12px;padding:5px 7px;border-radius:7px;background:rgba(52,211,153,.13);color:#6ee7b7;font-size:9px;font-weight:900;letter-spacing:.08em}
+.lio-g2-app .liog-upgrade-card__top{padding:22px 22px 12px!important}.lio-g2-app .liog-upgrade-card__title{color:#fff!important;font-size:24px!important;font-weight:900!important}.lio-g2-app .liog-upgrade-card__stars svg{fill:#fbbf24!important;width:15px!important}.lio-g2-app .liog-upgrade-card__badge{margin:0 22px 10px!important;display:inline-flex!important;padding:5px 8px!important;border-radius:7px!important;background:rgba(139,92,246,.12)!important;color:#c4b5fd!important;font-size:10px!important;font-weight:850!important}.lio-g2-app .liog-upgrade-benefits{margin:6px 22px 16px!important;padding:0!important;list-style:none!important}.lio-g2-app .liog-upgrade-benefits li{position:relative;margin:9px 0;padding-left:20px;color:#aeb8ca;font-size:12px;line-height:1.5}.lio-g2-app .liog-upgrade-benefits li:before{content:"✓";position:absolute;left:0;color:#67e8f9;font-weight:900}
+.lio-g2-app .liog-upgrade-card__progress,.lio-g2-app .liog-upgrade-card__body{padding-left:22px!important;padding-right:22px!important}.lio-g2-app .liog-upgrade-card__body{padding-bottom:22px!important}.lio-g2-app .liog-upgrade-req{padding:12px 0!important;border-top:1px solid var(--up-line)!important}.lio-g2-app .liog-upgrade-req__label{color:#7f8ca3!important;font-size:10px!important;font-weight:850!important;text-transform:uppercase!important;letter-spacing:.06em}.lio-g2-app .liog-upgrade-req__value{color:#fff!important}.lio-g2-app .liog-progress{background:#050913!important}.lio-g2-app .liog-progress span{background:linear-gradient(90deg,#7c3aed,#22d3ee)!important}.lio-g2-app .liog-upgrade-card__btn{width:100%!important;min-height:44px!important;border:0!important;border-radius:10px!important;background:linear-gradient(135deg,#7c3aed,#db2777)!important;color:#fff!important;font-weight:850!important}
+.lio-g2-app .liog-upgrade-history,.lio-g2-app .liog-upgrade-downgrade{margin-top:20px!important;border:1px solid var(--up-line)!important;background:var(--up-panel)!important;color:#e9eef8!important}.lio-g2-app .liog-upgrade-history table,.lio-g2-app .liog-upgrade-history th,.lio-g2-app .liog-upgrade-history td{background:#0a101c!important;color:#dce4f1!important;border-color:var(--up-line)!important}
+.lio-g2-app .liog-uc-plan-card{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 16px;padding:20px;border:1px solid rgba(139,92,246,.26);border-radius:18px;background:linear-gradient(135deg,rgba(139,92,246,.11),rgba(34,211,238,.04)),#0b1220;color:#f7f9ff}.lio-g2-app .liog-uc-plan-card__copy strong{display:block;margin:3px 0 5px;color:#fff;font-size:20px}.lio-g2-app .liog-uc-plan-card__copy p{margin:0;color:#97a5ba;font-size:12px}.lio-g2-app .liog-uc-plan-card__actions{display:flex;flex-direction:column;align-items:flex-end;gap:7px}.lio-g2-app .liog-uc-plan-card__actions small{color:#6f7d93;font-size:10px}.lio-g2-app .liog-uc-membership-btn{border:0!important;border-radius:10px!important;background:linear-gradient(135deg,#7c3aed,#db2777)!important;color:#fff!important;font-weight:850!important}.lio-g2-app .liog-uc-plan-badge{padding:8px 11px;border-radius:9px;background:rgba(52,211,153,.1);color:#6ee7b7;font-size:11px;font-weight:850}.lio-g2-app .liog-uc-membership-message{margin:0 0 15px;padding:12px 14px;border-radius:11px;font-size:12px}.lio-g2-app .liog-uc-membership-message.is-success{border:1px solid rgba(52,211,153,.28);background:rgba(52,211,153,.07);color:#a7f3d0}.lio-g2-app .liog-uc-membership-message.is-error{border:1px solid rgba(248,113,113,.28);background:rgba(248,113,113,.07);color:#fecaca}
+@media(max-width:900px){.lio-g2-app .liog-upgrade-cards{grid-template-columns:1fr!important}.lio-g2-app .liog-uc-plan-card{display:block}.lio-g2-app .liog-uc-plan-card__actions{align-items:flex-start;margin-top:14px}}
+@media(max-width:560px){.lio-g2-app .liog-upgrade-hero{padding:22px!important;border-radius:18px}.lio-g2-app .liog-upgrade-card__top{padding:18px 18px 10px!important}.lio-g2-app .liog-upgrade-benefits,.lio-g2-app .liog-upgrade-card__badge{margin-left:18px!important;margin-right:18px!important}.lio-g2-app .liog-upgrade-card__progress,.lio-g2-app .liog-upgrade-card__body{padding-left:18px!important;padding-right:18px!important}.lio-g2-app .liog-uc-plan-card{padding:17px}}
+
+
+/* === LioGames 2.7.0 reseller levels redesign === */
+.lio-g2-app .liog-upgrade-page--pro{--lv-bg:#080d17;--lv-panel:#0d1422;--lv-panel2:#101a2b;--lv-line:rgba(255,255,255,.085);--lv-text:#f7f9ff;--lv-muted:#95a2b7;--lv-purple:#8b5cf6;--lv-cyan:#22d3ee;--lv-pink:#ec4899;color:var(--lv-text)}
+.lio-g2-app .liog-level-overview{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:28px;align-items:center;margin:0 0 16px;padding:30px;border:1px solid rgba(139,92,246,.24);border-radius:24px;background:radial-gradient(circle at 12% 18%,rgba(139,92,246,.18),transparent 34%),radial-gradient(circle at 92% 20%,rgba(34,211,238,.09),transparent 28%),linear-gradient(145deg,#11192a,#0a0f1b);box-shadow:0 24px 60px rgba(0,0,0,.18)}
+.lio-g2-app .liog-level-eyebrow{display:inline-flex;align-items:center;gap:8px;color:#c4b5fd;font-size:10px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+.lio-g2-app .liog-level-eyebrow:before{content:"";width:24px;height:1px;background:linear-gradient(90deg,var(--lv-purple),var(--lv-cyan))}
+.lio-g2-app .liog-level-current-line{display:flex;align-items:center;gap:9px;margin:11px 0 6px}.lio-g2-app .liog-level-current-line span{color:#8491a7;font-size:11px}.lio-g2-app .liog-level-current-line strong{display:inline-flex;padding:6px 9px;border-radius:8px;background:rgba(52,211,153,.10);color:#6ee7b7;font-size:10px;letter-spacing:.08em}
+.lio-g2-app .liog-level-overview h2{margin:7px 0 12px!important;color:#fff!important;font-size:clamp(28px,4.3vw,43px)!important;line-height:1.06!important;letter-spacing:-.04em!important}
+.lio-g2-app .liog-level-overview p{max-width:820px;margin:0!important;color:#aab5c8!important;font-size:14px!important;line-height:1.72!important}
+.lio-g2-app .liog-level-overview__actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:20px}.lio-g2-app .liog-level-primary-link{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:42px!important;padding:0 15px!important;border:1px solid rgba(139,92,246,.4)!important;border-radius:10px!important;background:linear-gradient(135deg,#7c3aed,#db2777)!important;color:#fff!important;text-decoration:none!important;font-size:12px!important;font-weight:850!important}.lio-g2-app .liog-level-period{color:#79869c;font-size:10px}
+.lio-g2-app .liog-level-overview__badge{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:170px;padding:22px;border:1px solid var(--lv-line);border-radius:20px;background:linear-gradient(150deg,rgba(139,92,246,.12),rgba(255,255,255,.02));text-align:center}.lio-g2-app .liog-level-overview__badge span{color:#7d8aa1;font-size:9px;font-weight:900;letter-spacing:.11em;text-transform:uppercase}.lio-g2-app .liog-level-overview__badge strong{margin:8px 0 4px;color:#fff;font-size:34px;line-height:1}.lio-g2-app .liog-level-overview__badge small{color:#b0bbcd;font-size:11px}
+
+/* compact demo preview - fixes the old white form block */
+.lio-g2-app .liog-demo-bar{display:flex!important;gap:16px!important;align-items:center!important;justify-content:space-between!important;margin:0 0 18px!important;padding:14px 16px!important;border:1px solid var(--lv-line)!important;border-radius:15px!important;background:#0c1320!important;color:#dfe6f3!important;box-shadow:none!important}
+.lio-g2-app .liog-demo-bar.is-active{border-color:rgba(245,158,11,.28)!important;background:linear-gradient(145deg,rgba(245,158,11,.06),#0c1320)!important}
+.lio-g2-app .liog-demo-bar__text{display:flex!important;flex-direction:column!important;gap:3px!important;color:#9eabc0!important;font-size:11px!important}.lio-g2-app .liog-demo-bar__text>strong{color:#fff!important;font-size:12px!important}
+.lio-g2-app .liog-demo-bar__form{display:flex!important;gap:8px!important;align-items:center!important;flex-wrap:wrap!important;margin:0!important}.lio-g2-app .liog-demo-bar__form select{min-width:135px!important;height:39px!important;padding:0 34px 0 11px!important;border:1px solid var(--lv-line)!important;border-radius:9px!important;background:#090f1a!important;color:#fff!important;font-size:11px!important}.lio-g2-app .liog-demo-bar__form .button{min-height:39px!important;padding:0 12px!important;border:1px solid rgba(139,92,246,.28)!important;border-radius:9px!important;background:rgba(139,92,246,.11)!important;color:#d8d3ff!important;font-size:10px!important;font-weight:850!important}
+
+.lio-g2-app .liog-next-level{margin:0 0 26px;padding:24px;border:1px solid rgba(34,211,238,.16);border-radius:20px;background:radial-gradient(circle at 94% 10%,rgba(34,211,238,.08),transparent 28%),linear-gradient(150deg,#0e1727,#0a101c)}
+.lio-g2-app .liog-next-level--top{border-color:rgba(236,72,153,.18);background:linear-gradient(150deg,rgba(236,72,153,.06),#0a101c)}
+.lio-g2-app .liog-next-level__head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}.lio-g2-app .liog-next-level__head h3{margin:6px 0 0!important;color:#fff!important;font-size:22px!important}.lio-g2-app .liog-next-level__rule{padding:7px 10px;border-radius:999px;background:rgba(139,92,246,.10);color:#c4b5fd;font-size:10px;font-weight:850;white-space:nowrap}
+.lio-g2-app .liog-next-level__metrics{display:grid;grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);gap:12px;align-items:center}.lio-g2-app .liog-next-level__metrics article{padding:15px;border:1px solid var(--lv-line);border-radius:14px;background:rgba(255,255,255,.02)}.lio-g2-app .liog-next-level__metrics article>small{display:block;margin-top:7px;color:#6f7d94;font-size:9px;text-align:right}.lio-g2-app .liog-metric-top{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px}.lio-g2-app .liog-metric-top span{color:#8491a7;font-size:10px}.lio-g2-app .liog-metric-top b{color:#fff;font-size:11px}
+.lio-g2-app .liog-next-level__or{display:grid;place-items:center;width:40px;height:40px;margin:auto;border-radius:50%;background:rgba(139,92,246,.12);color:#c4b5fd;font-size:9px;font-weight:950}.lio-g2-app .liog-level-progress{height:6px;overflow:hidden;border-radius:999px;background:#050912}.lio-g2-app .liog-level-progress span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#7c3aed,#22d3ee)}
+.lio-g2-app .liog-next-level__status{display:flex;align-items:center;gap:8px;margin-top:14px;padding:11px 12px;border-radius:11px;background:rgba(255,255,255,.025);color:#8794a9;font-size:10px}.lio-g2-app .liog-next-level__status strong{color:#dbe4f1}.lio-g2-app .liog-next-level__status.is-ready{background:rgba(16,185,129,.07);color:#88d9bb}.lio-g2-app .liog-next-level__status.is-ready strong{color:#6ee7b7}
+
+.lio-g2-app .liog-level-section-head{margin:34px 0 18px}.lio-g2-app .liog-level-section-head h3{margin:7px 0 7px!important;color:#fff!important;font-size:27px!important;letter-spacing:-.025em}.lio-g2-app .liog-level-section-head p{margin:0!important;color:#8190a8!important;font-size:11px!important}
+.lio-g2-app .liog-upgrade-cards--pro{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px!important;align-items:stretch!important}
+.lio-g2-app .liog-upgrade-card--pro{display:flex!important;flex-direction:column!important;min-width:0!important;padding:0!important;border:1px solid var(--lv-line)!important;border-radius:20px!important;background:linear-gradient(150deg,#101726,#0b111d)!important;overflow:hidden!important;box-shadow:none!important;transform:none!important}
+.lio-g2-app .liog-upgrade-card--pro.is-popular{border-color:rgba(139,92,246,.34)!important;background:linear-gradient(150deg,rgba(124,58,237,.10),#0b111d)!important}
+.lio-g2-app .liog-upgrade-card--pro.is-premium{border-color:rgba(236,72,153,.34)!important;background:radial-gradient(circle at 90% 4%,rgba(34,211,238,.08),transparent 28%),linear-gradient(150deg,rgba(236,72,153,.08),#0b111d)!important}
+.lio-g2-app .liog-upgrade-card--pro.is-current{box-shadow:inset 0 0 0 1px rgba(52,211,153,.20)!important}
+.lio-g2-app .liog-upgrade-card--pro:after{display:none!important}
+.lio-g2-app .liog-upgrade-card__header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:21px 21px 16px;border-bottom:1px solid var(--lv-line)}.lio-g2-app .liog-upgrade-card__level{display:inline-flex;padding:5px 8px;border-radius:7px;background:rgba(139,92,246,.12);color:#c4b5fd;font-size:9px;font-weight:950;letter-spacing:.08em}.lio-g2-app .liog-upgrade-card__header h4{margin:8px 0 0!important;color:#fff!important;font-size:21px!important}.lio-g2-app .liog-level-state{display:inline-flex;padding:5px 7px;border:1px solid var(--lv-line);border-radius:7px;color:#7e8da4;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}.lio-g2-app .liog-level-state.is-current{border-color:rgba(52,211,153,.18);background:rgba(52,211,153,.08);color:#6ee7b7}.lio-g2-app .liog-level-state.is-eligible{border-color:rgba(34,211,238,.18);background:rgba(34,211,238,.07);color:#67e8f9}
+.lio-g2-app .liog-level-eligibility{padding:18px 21px;border-bottom:1px solid var(--lv-line)}.lio-g2-app .liog-level-eligibility>span,.lio-g2-app .liog-level-benefits__title{display:block;color:#728096;font-size:8px;font-weight:900;letter-spacing:.10em;text-transform:uppercase}.lio-g2-app .liog-level-eligibility>strong{display:block;margin-top:8px;color:#fff;font-size:15px}.lio-g2-app .liog-level-eligibility>small{display:block;margin-top:6px;color:#8592a8;font-size:10px;line-height:1.5}.lio-g2-app .liog-level-choice{display:grid;grid-template-columns:1fr 30px 1fr;gap:7px;align-items:center;margin-top:10px}.lio-g2-app .liog-level-choice>div{padding:11px;border:1px solid var(--lv-line);border-radius:11px;background:rgba(255,255,255,.02)}.lio-g2-app .liog-level-choice small{display:block;color:#76839a;font-size:8px}.lio-g2-app .liog-level-choice strong{display:block;margin-top:4px;color:#fff;font-size:14px}.lio-g2-app .liog-level-choice>b{display:grid;place-items:center;color:#c4b5fd;font-size:8px}
+.lio-g2-app .liog-level-benefits{padding:18px 21px;flex:1}.lio-g2-app .liog-level-benefits ul{margin:11px 0 0!important;padding:0!important;list-style:none!important}.lio-g2-app .liog-level-benefits li{position:relative;margin:9px 0;padding-left:19px;color:#a5b0c3;font-size:10.5px;line-height:1.45}.lio-g2-app .liog-level-benefits li:before{content:"✓";position:absolute;left:0;color:#67e8f9;font-weight:900}
+.lio-g2-app .liog-level-addon{margin-top:14px;padding:11px;border:1px solid rgba(139,92,246,.17);border-radius:10px;background:rgba(139,92,246,.05)}.lio-g2-app .liog-level-addon b,.lio-g2-app .liog-level-addon span{display:block}.lio-g2-app .liog-level-addon b{color:#c4b5fd;font-size:8px;text-transform:uppercase;letter-spacing:.06em}.lio-g2-app .liog-level-addon span{margin-top:3px;color:#9aa5b9;font-size:9px}
+.lio-g2-app .liog-level-card-progress{padding:0 21px 16px}.lio-g2-app .liog-level-card-progress>div:not(.liog-level-progress){display:flex;justify-content:space-between;gap:9px;margin:9px 0 6px}.lio-g2-app .liog-level-card-progress span,.lio-g2-app .liog-level-card-progress b{font-size:8.5px}.lio-g2-app .liog-level-card-progress span{color:#76849b}.lio-g2-app .liog-level-card-progress b{color:#dce5f3}.lio-g2-app .liog-level-card-progress .liog-level-progress{height:5px}
+.lio-g2-app .liog-level-card-action{padding:0 21px 21px;margin-top:auto}.lio-g2-app .liog-upgrade-card--pro .liog-upgrade-card__btn{display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;min-height:42px!important;margin:0!important;border:0!important;border-radius:10px!important;background:linear-gradient(135deg,#7c3aed,#db2777)!important;color:#fff!important;font-size:10px!important;font-weight:900!important;text-decoration:none!important}.lio-g2-app .liog-upgrade-card--pro .liog-upgrade-card__btn[disabled]{background:#1a2434!important;color:#6f7d92!important;opacity:1!important}.lio-g2-app .liog-upgrade-card--pro .liog-upgrade-card__btn.is-current{background:rgba(52,211,153,.08)!important;color:#6ee7b7!important}.lio-g2-app .liog-level-lower-note{display:block;padding:11px 0;color:#78869b;font-size:9px;text-align:center}
+.lio-g2-app .liog-level-notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}.lio-g2-app .liog-level-notes>div{padding:15px;border:1px solid var(--lv-line);border-radius:13px;background:#0c1320}.lio-g2-app .liog-level-notes strong,.lio-g2-app .liog-level-notes span{display:block}.lio-g2-app .liog-level-notes strong{color:#fff;font-size:10px}.lio-g2-app .liog-level-notes span{margin-top:5px;color:#8290a6;font-size:9px;line-height:1.5}
+.lio-g2-app .liog-level-details{margin-top:12px;border:1px solid var(--lv-line);border-radius:14px;background:#0c1320;overflow:hidden}.lio-g2-app .liog-level-details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 17px;color:#dfe6f2;font-size:11px;font-weight:850}.lio-g2-app .liog-level-details>summary::-webkit-details-marker{display:none}.lio-g2-app .liog-level-details>summary:after{content:"+";margin-left:auto;color:#a78bfa;font-size:18px}.lio-g2-app .liog-level-details[open]>summary:after{content:"−"}.lio-g2-app .liog-level-details>summary small{margin-right:12px;color:#718096;font-size:9px;font-weight:700}.lio-g2-app .liog-level-history__body,.lio-g2-app .liog-upgrade-downgrade{padding:0 17px 17px}.lio-g2-app .liog-upgrade-downgrade{margin:0!important;border:0!important;background:transparent!important}.lio-g2-app .liog-upgrade-downgrade h3{color:#fff!important;font-size:14px!important}.lio-g2-app .liog-upgrade-downgrade p{color:#8190a6!important;font-size:10px!important}.lio-g2-app .liog-upgrade-downgrade__form{display:flex;gap:8px;flex-wrap:wrap}.lio-g2-app .liog-upgrade-downgrade__select{min-width:160px;height:40px;border:1px solid var(--lv-line)!important;border-radius:9px!important;background:#08101b!important;color:#fff!important}.lio-g2-app .liog-upgrade-downgrade__btn{min-height:40px!important;border:1px solid rgba(239,68,68,.2)!important;border-radius:9px!important;background:rgba(239,68,68,.07)!important;color:#fca5a5!important}
+.lio-g2-app .liog-level-history table,.lio-g2-app .liog-level-history th,.lio-g2-app .liog-level-history td{background:#09101b!important;color:#dce4f1!important;border-color:var(--lv-line)!important}.lio-g2-app .liog-level-history th{color:#8795aa!important;font-size:8px!important;text-transform:uppercase!important;letter-spacing:.06em}.lio-g2-app .liog-level-history td{font-size:9px!important}
+
+@media(max-width:960px){.lio-g2-app .liog-level-overview{grid-template-columns:1fr}.lio-g2-app .liog-level-overview__badge{min-height:auto;align-items:flex-start;text-align:left}.lio-g2-app .liog-upgrade-cards--pro{grid-template-columns:1fr!important}.lio-g2-app .liog-level-notes{grid-template-columns:1fr}.lio-g2-app .liog-next-level__metrics{grid-template-columns:1fr}.lio-g2-app .liog-next-level__or{margin:0 auto}}
+@media(max-width:620px){.lio-g2-app .liog-level-overview{padding:21px;border-radius:18px}.lio-g2-app .liog-level-overview h2{font-size:30px!important}.lio-g2-app .liog-demo-bar{align-items:flex-start!important;flex-direction:column!important}.lio-g2-app .liog-demo-bar__form{width:100%!important;display:grid!important;grid-template-columns:1fr!important}.lio-g2-app .liog-demo-bar__form select,.lio-g2-app .liog-demo-bar__form .button{width:100%!important}.lio-g2-app .liog-next-level{padding:18px}.lio-g2-app .liog-next-level__head{align-items:flex-start;flex-direction:column}.lio-g2-app .liog-level-choice{grid-template-columns:1fr}.lio-g2-app .liog-level-choice>b{padding:2px 0}.lio-g2-app .liog-upgrade-card__header,.lio-g2-app .liog-level-eligibility,.lio-g2-app .liog-level-benefits,.lio-g2-app .liog-level-card-progress,.lio-g2-app .liog-level-card-action{padding-left:17px!important;padding-right:17px!important}}
+
+/* 2.7.0 motion polish - visual only, respects reduced-motion preferences */
+@media (prefers-reduced-motion:no-preference){
+  .lio-g2-app .liog-level-overview{animation:liog-level-rise .42s ease-out both}
+  .lio-g2-app .liog-next-level{animation:liog-level-rise .46s .04s ease-out both}
+  .lio-g2-app .liog-upgrade-card--pro{animation:liog-level-fade .48s ease-out both;transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease}
+  .lio-g2-app .liog-upgrade-card--pro:nth-child(2){animation-delay:.05s}
+  .lio-g2-app .liog-upgrade-card--pro:nth-child(3){animation-delay:.10s}
+  .lio-g2-app .liog-upgrade-card--pro:hover{transform:translateY(-3px)!important;box-shadow:0 18px 36px rgba(0,0,0,.18)!important}
+  .lio-g2-app .liog-level-progress span{transform-origin:left;animation:liog-level-fill .72s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes liog-level-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes liog-level-fade{from{opacity:0}to{opacity:1}}
+  @keyframes liog-level-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+}
+
+/* === 2.7.1 reseller-level gaming motion === */
+.lio-g2-app .liog-upgrade-page--pro{position:relative;isolation:isolate}
+.lio-g2-app .liog-upgrade-page--pro:before{content:"";position:absolute;z-index:-1;inset:-24px -18px;pointer-events:none;opacity:.16;background-image:linear-gradient(rgba(34,211,238,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,.08) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 74%);-webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 74%);transform:perspective(700px) rotateX(62deg) translateY(-18%);transform-origin:top center}
+.lio-g2-app .liog-level-overview{position:relative;overflow:hidden;isolation:isolate}
+.lio-g2-app .liog-level-overview:before{content:"";position:absolute;z-index:-1;width:360px;height:360px;left:var(--lv-glow-x,72%);top:var(--lv-glow-y,16%);transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(34,211,238,.14),rgba(139,92,246,.07) 34%,transparent 68%);filter:blur(2px);transition:left .14s linear,top .14s linear}
+.lio-g2-app .liog-level-overview__badge{position:relative;overflow:hidden;transform-style:preserve-3d}
+.lio-g2-app .liog-level-overview__badge:after{content:"";position:absolute;inset:auto 18px 14px;height:1px;background:linear-gradient(90deg,transparent,#22d3ee,#8b5cf6,transparent);opacity:.45}
+.lio-g2-app .liog-upgrade-card--pro{--lv-tilt-x:0deg;--lv-tilt-y:0deg;--lv-lift:0px;--lv-gx:50%;--lv-gy:50%;position:relative!important;isolation:isolate!important;transform:perspective(1050px) rotateX(var(--lv-tilt-x)) rotateY(var(--lv-tilt-y)) translateY(var(--lv-lift))!important;transform-style:preserve-3d!important;will-change:transform;transition:transform .16s ease,border-color .18s ease,box-shadow .18s ease!important}
+.lio-g2-app .liog-upgrade-card--pro:before{content:"";position:absolute;z-index:-1;inset:-1px;border-radius:inherit;pointer-events:none;background:radial-gradient(220px circle at var(--lv-gx) var(--lv-gy),rgba(34,211,238,.10),rgba(139,92,246,.05) 34%,transparent 72%);opacity:.95}
+.lio-g2-app .liog-upgrade-card--pro:hover{--lv-lift:-5px;box-shadow:0 24px 52px rgba(0,0,0,.24),0 0 0 1px rgba(139,92,246,.10)!important}
+.lio-g2-app .liog-upgrade-card--pro .liog-upgrade-card__header,
+.lio-g2-app .liog-upgrade-card--pro .liog-level-eligibility,
+.lio-g2-app .liog-upgrade-card--pro .liog-level-benefits,
+.lio-g2-app .liog-upgrade-card--pro .liog-level-card-progress,
+.lio-g2-app .liog-upgrade-card--pro .liog-level-card-action{transform:translateZ(14px)}
+.lio-g2-app .liog-next-level__or{box-shadow:0 0 0 0 rgba(139,92,246,.25)}
+.lio-g2-app .liog-level-progress{position:relative}
+.lio-g2-app .liog-level-progress span:after{content:"";position:absolute;inset:0;width:36%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);transform:translateX(-160%)}
+@media (prefers-reduced-motion:no-preference){
+  .lio-g2-app .liog-level-overview__badge{animation:liogLevelFloat 4.6s ease-in-out infinite}
+  .lio-g2-app .liog-next-level__or{animation:liogLevelPulse 2.8s ease-in-out infinite}
+  .lio-g2-app .liog-level-progress span:after{animation:liogLevelShine 2.8s 1s ease-in-out infinite}
+  .lio-g2-app .liog-level-state.is-current,.lio-g2-app .liog-level-state.is-eligible{animation:liogLevelBadge 3.2s ease-in-out infinite}
+  @keyframes liogLevelFloat{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-7px,18px)}}
+  @keyframes liogLevelPulse{0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,.16)}50%{box-shadow:0 0 0 8px rgba(139,92,246,0)}}
+  @keyframes liogLevelShine{0%,55%{transform:translateX(-160%)}85%,100%{transform:translateX(360%)}}
+  @keyframes liogLevelBadge{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+}
+@media (hover:none),(pointer:coarse),(prefers-reduced-motion:reduce){
+  .lio-g2-app .liog-upgrade-card--pro{transform:none!important;will-change:auto}
+  .lio-g2-app .liog-upgrade-card--pro .liog-upgrade-card__header,
+  .lio-g2-app .liog-upgrade-card--pro .liog-level-eligibility,
+  .lio-g2-app .liog-upgrade-card--pro .liog-level-benefits,
+  .lio-g2-app .liog-upgrade-card--pro .liog-level-card-progress,
+  .lio-g2-app .liog-upgrade-card--pro .liog-level-card-action{transform:none}
+}
+
+
+/* ==========================================================
+   2.8.1 reseller panel density + responsive navigation
+   ========================================================== */
+.lio-g2-nav{justify-content:flex-start;gap:7px;overflow:visible}.lio-g2-nav__link,.lio-g2-nav__summary{padding:0 13px;font-size:13px}.lio-g2-nav__group{flex:0 0 auto}.lio-g2-nav__group--more .lio-g2-nav__submenu{right:0;left:auto;transform:none}
+.lio-g2-profile-menu__dropdown{width:min(330px,calc(100vw - 24px))!important;padding:12px!important;max-height:min(680px,calc(100vh - 90px));overflow:auto}.lio-g2-profile-menu__meta{gap:7px!important;margin:10px 0!important}.lio-g2-profile-menu__meta div{padding:8px 9px!important;border-radius:11px!important}.lio-g2-profile-menu__items{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}.lio-g2-profile-menu__item{padding:9px 9px!important;font-size:12px!important;min-width:0}.lio-g2-profile-menu__item span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lio-g2-profile-menu__footer .lio-g2-profile-menu__item{width:100%}.lio-g2-member-code-row{position:relative}.lio-g2-copy-code{border:0!important;background:transparent!important;box-shadow:none!important;color:var(--lio-g2-yellow)!important;padding:2px 4px!important;margin-left:4px!important;cursor:pointer;font-size:11px!important}
+body.lio-g2-route-loading:before{content:"";position:fixed;z-index:100000;top:0;left:0;width:36%;height:3px;background:linear-gradient(90deg,#ffc400,#8b5cf6,#22d3ee);box-shadow:0 0 18px rgba(255,196,0,.45);animation:lioRouteProgress .7s ease-in-out infinite alternate;pointer-events:none}@keyframes lioRouteProgress{from{transform:translateX(-35%)}to{transform:translateX(230%)}}body.lio-g2-route-loading .lio-g2-main{opacity:1!important;visibility:visible!important;filter:none!important}
+@media(min-width:701px){.lio-g2-app table.woocommerce-orders-table{display:table!important;table-layout:auto!important}.lio-g2-app table.woocommerce-orders-table thead{display:table-header-group!important}.lio-g2-app table.woocommerce-orders-table tbody{display:table-row-group!important}.lio-g2-app table.woocommerce-orders-table tr{display:table-row!important}.lio-g2-app table.woocommerce-orders-table th,.lio-g2-app table.woocommerce-orders-table td{display:table-cell!important;width:auto!important;padding:10px 12px!important;font-size:12px!important}.lio-g2-app table.woocommerce-orders-table td:before{display:none!important}.lio-g2-app .woocommerce-orders-table__cell-order-actions .button{padding:7px 10px!important;font-size:11px!important;box-shadow:none!important}}
+@media(max-width:700px){.lio-g2-profile-menu__items{grid-template-columns:1fr!important}.lio-g2-nav{overflow-y:auto!important}}
+
+
+/* ==========================================================
+   2.8.2 header menu: Playground visible, tools grouped
+   ========================================================== */
+@media (min-width:861px){
+  .lio-g2-nav{
+    width:min(1240px,calc(100% - 28px));
+    justify-content:center;
+    gap:6px;
+    flex-wrap:nowrap;
+    overflow:visible!important;
+  }
+  .lio-g2-nav__link,.lio-g2-nav__summary{
+    height:40px;
+    padding:0 11px;
+    gap:7px;
+    font-size:12px;
+  }
+  .lio-g2-nav__group:not(.lio-g2-nav__group--more) .lio-g2-nav__submenu{
+    left:0;
+    right:auto;
+    transform:none;
+    width:430px;
+    min-width:430px;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+    padding:10px;
+  }
+  .lio-g2-nav__subitem{min-width:0;padding:10px 11px}
+  .lio-g2-nav__subitem span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+@media (max-width:1100px) and (min-width:861px){
+  .lio-g2-nav{width:calc(100% - 18px);gap:4px}
+  .lio-g2-nav__link,.lio-g2-nav__summary{padding:0 8px;font-size:11px;gap:5px}
+  .lio-g2-nav__link .dashicons,.lio-g2-nav__summary .dashicons{width:15px;height:15px;font-size:15px}
+}
+@media (max-width:860px){
+  .lio-g2-nav__group .lio-g2-nav__submenu{grid-template-columns:1fr!important;width:100%!important;min-width:0!important}
+}
+
+
+/* ==========================================================
+   2.8.3 header: API Integration + Developer Tools dropdowns
+   ========================================================== */
+@media (min-width:861px){
+  .lio-g2-nav{width:min(1260px,calc(100% - 20px));gap:5px;justify-content:center;flex-wrap:nowrap;overflow:visible!important}
+  .lio-g2-nav__group--api .lio-g2-nav__submenu,.lio-g2-nav__group--developer .lio-g2-nav__submenu{left:0!important;right:auto!important;transform:none!important;width:300px!important;min-width:300px!important;grid-template-columns:1fr!important;gap:5px!important;padding:9px!important}
+  .lio-g2-nav__group--developer .lio-g2-nav__submenu{width:285px!important;min-width:285px!important}
+  .lio-g2-nav__link,.lio-g2-nav__summary{padding:0 9px;font-size:11.5px;gap:6px;white-space:nowrap}
+  .lio-g2-nav__group--more .lio-g2-nav__submenu{max-height:min(70vh,520px);overflow:auto}
+}
+@media (max-width:1120px) and (min-width:861px){.lio-g2-nav{gap:3px}.lio-g2-nav__link,.lio-g2-nav__summary{padding:0 7px;font-size:10.5px;gap:4px}.lio-g2-nav__link .dashicons,.lio-g2-nav__summary .dashicons{width:14px;height:14px;font-size:14px}}
+@media (max-width:860px){.lio-g2-nav__group--api,.lio-g2-nav__group--developer{width:100%}.lio-g2-nav__group--api .lio-g2-nav__submenu,.lio-g2-nav__group--developer .lio-g2-nav__submenu{width:100%!important;min-width:0!important;grid-template-columns:1fr!important}}
+
+/* 2.9.0 final responsive shell hardening */
+.lio-g2-app,.lio-g2-main,.lio-g2-content-card{max-width:100%;min-width:0;overflow-x:hidden}
+.lio-g2-content-card img,.lio-g2-content-card video,.lio-g2-content-card iframe{max-width:100%;height:auto}
+.lio-g2-content-card .liog-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:860px){
+  .lio-g2-header,.lio-g2-main,.lio-g2-footer{max-width:100vw!important;overflow-x:hidden!important}
+  .lio-g2-nav{width:calc(100% - 14px)!important;max-width:none!important;margin:0 7px!important;padding:8px!important;border:1px solid rgba(255,255,255,.07);border-radius:0 0 14px 14px;background:rgba(6,10,18,.985)!important;box-sizing:border-box!important}
+  .lio-g2-nav__link,.lio-g2-nav__summary{min-height:44px!important;height:auto!important;padding:10px 11px!important;border-radius:9px!important;white-space:normal!important}
+  .lio-g2-nav__group,.lio-g2-nav__submenu{max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+  .lio-g2-main{width:calc(100% - 14px)!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important}
+  .lio-g2-content-card{width:100%!important;padding-left:0!important;padding-right:0!important}
+}
+@media(max-width:520px){
+  .lio-g2-main{width:calc(100% - 10px)!important}
+  .lio-g2-content-card input,.lio-g2-content-card select,.lio-g2-content-card textarea,.lio-g2-content-card button{max-width:100%;box-sizing:border-box}
+}
+
+
+/* 2.9.1 panel first-paint/menu stability + H2H invoice discoverability */
+.lio-g2-app .lio-g2-nav,.lio-g2-app .lio-g2-nav *,.lio-dashboard>*{animation:none!important}
+.lio-g2-app .lio-g2-nav{transition:none!important}
+@media(max-width:860px){
+  .lio-g2-header .lio-g2-nav{display:none!important}
+  body.lio-g2-menu-open .lio-g2-header .lio-g2-nav{display:flex!important}
+  .lio-g2-header .lio-g2-nav{max-height:calc(100dvh - 82px)!important;overflow-y:auto!important;overflow-x:hidden!important}
+}
+.lio-h2h-invoice-discovery{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:18px 0;padding:18px 20px;border:1px solid rgba(251,191,36,.22);border-radius:15px;background:linear-gradient(135deg,rgba(251,191,36,.07),rgba(139,92,246,.055)),#0a101c}
+.lio-h2h-invoice-discovery__eyebrow{display:block;margin-bottom:5px;color:#fbbf24;font-size:10px;font-weight:900;letter-spacing:.13em}
+.lio-h2h-invoice-discovery h2{margin:0 0 6px;color:#fff;font-size:18px}
+.lio-h2h-invoice-discovery p{margin:0;max-width:760px;color:#8f9cb1;font-size:12px;line-height:1.6}
+.lio-h2h-invoice-discovery__action a,.lio-h2h-invoice-discovery__action span{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border-radius:10px;font-size:12px;font-weight:850;white-space:nowrap}
+.lio-h2h-invoice-discovery__action a{background:#ffc400;color:#07101b!important}
+.lio-h2h-invoice-discovery__action span{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#8c98aa}
+@media(max-width:700px){.lio-h2h-invoice-discovery{display:block}.lio-h2h-invoice-discovery__action{margin-top:13px}.lio-h2h-invoice-discovery__action a,.lio-h2h-invoice-discovery__action span{width:100%}}
+
+/* 2.9.3 corrected dashboard information + stronger H2H cards */
+.lio-h2h-invoice-discovery{position:relative;overflow:hidden;border-color:rgba(251,191,36,.30)!important;background:radial-gradient(circle at 92% 12%,rgba(34,211,238,.08),transparent 34%),linear-gradient(135deg,rgba(251,191,36,.075),rgba(139,92,246,.065)),#09111e!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.018),0 14px 34px rgba(0,0,0,.12)}
+.lio-h2h-invoice-discovery:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,rgba(251,191,36,.75),rgba(139,92,246,.46),rgba(34,211,238,.5))}
+.lio-h2h-invoice-discovery.is-locked{border-color:rgba(148,163,184,.18)!important;filter:saturate(.9)}.lio-h2h-invoice-discovery.is-locked .lio-h2h-invoice-discovery__eyebrow{color:#c4b5fd}.lio-h2h-invoice-discovery.is-enabled .lio-h2h-invoice-discovery__eyebrow{color:#6ee7b7}
+.lio-stat-card__sub{margin-top:5px!important;color:#7f90a7!important;font-size:10px!important}

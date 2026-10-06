@@ -1,0 +1,1619 @@
+(function($){
+  $(function(){
+    // -------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------
+    var apiBase = (window.LiogamesPublic && window.LiogamesPublic.restUrl) ? window.LiogamesPublic.restUrl.replace(/\/$/, '') : '/wp-json/liogames/v1';
+    var liogCurrentSchema = null; // last loaded product input schema
+    var planInfo = (window.LiogamesPublic && window.LiogamesPublic.planInfo) ? window.LiogamesPublic.planInfo : {};
+    var upgradeAmounts = (window.LiogamesPublic && window.LiogamesPublic.upgradeAmounts) ? window.LiogamesPublic.upgradeAmounts : {};
+    var demoPreview = (window.LiogamesPublic && window.LiogamesPublic.demoPreview) ? window.LiogamesPublic.demoPreview : { active: 0, message: '' };
+
+    function shouldSendNonce(){
+      return !!(window.LiogamesPublic && window.LiogamesPublic.loggedIn && window.LiogamesPublic.nonce);
+    }
+
+    function isDemoPreviewActive(){
+      return !!(demoPreview && parseInt(demoPreview.active || 0, 10) === 1);
+    }
+
+    function demoPreviewMessage(){
+      return (demoPreview && demoPreview.message) ? String(demoPreview.message) : 'Demo Preview is active. Live actions are disabled until you switch back to your real panel.';
+    }
+
+    function showLiogamesNotice(message, type){
+      message = message || 'Action blocked.';
+      type = type || 'error';
+      var id = 'liogames-floating-notice';
+      var $box = $('#' + id);
+      if(!$box.length){
+        $box = $('<div/>', { id: id, 'class': 'liogames-floating-notice', 'role': 'alert', 'aria-live': 'assertive' }).appendTo('body');
+      }
+      $box.removeClass('is-error is-success is-info').addClass('is-' + type).text(message).addClass('is-visible');
+      clearTimeout($box.data('timer'));
+      $box.data('timer', setTimeout(function(){ $box.removeClass('is-visible'); }, 5200));
+    }
+
+    function showDemoPreviewAlert(){
+      showLiogamesNotice(demoPreviewMessage(), 'error');
+    }
+
+    // Delegated binding: WooCommerce My Account tabs can render content dynamically.
+    $('body').on('click', '#liogames-load-variations', function(){
+      var pid = $('#liogames-product-select').val();
+      if(!pid){ alert('Select a product'); return; }
+
+      var $tb = $('#liogames-variations-table tbody');
+      $tb.empty().append('<tr><td colspan="2">Loading...</td></tr>');
+
+      $.ajax({
+        url: apiBase + '/product-variations',
+        method: 'GET',
+        dataType: 'json',
+        data: { product_id: pid },
+        beforeSend: function(xhr){
+          if(shouldSendNonce()){
+            xhr.setRequestHeader('X-WP-Nonce', window.LiogamesPublic.nonce);
+          }
+        },
+        success: function(res){
+          $tb.empty();
+          if(res && res.ok){
+            var vars = (res.variations || (res.data && res.data.variations) || []);
+            if(!vars || !vars.length){
+              $tb.append('<tr><td colspan="2">No variations found.</td></tr>');
+              return;
+            }
+            vars.forEach(function(row){
+              $tb.append('<tr><td>'+row.variation_id+'</td><td>'+row.attributes+'</td></tr>');
+            });
+          } else {
+            var msg = (res && (res.message || res.code)) ? (res.message || res.code) : 'Request failed.';
+            $tb.append('<tr><td colspan="2">'+escHtml(msg)+'</td></tr>');
+            alert('Error: ' + msg);
+          }
+        },
+        error: function(xhr){
+          $tb.empty();
+          var msg = 'Request failed. Please try again.';
+          try {
+            if(xhr && xhr.responseJSON && xhr.responseJSON.message){
+              msg = xhr.responseJSON.message;
+            } else if(xhr && xhr.status){
+              msg = 'Request failed (' + xhr.status + '). Please try again.';
+            }
+          } catch(ex){}
+          $tb.append('<tr><td colspan="2">'+escHtml(msg)+'</td></tr>');
+          alert(msg);
+        }
+      });
+    });
+
+    $('body').on('click', '#liogames-download-csv', function(){
+      var pid = $('#liogames-product-select').val();
+      if(!pid){ alert('Select a product'); return; }
+      window.location = apiBase + '/product-variations?product_id='+pid+'&download=1';
+    });
+
+    // -------------------------------------------------------------------
+    // Level Prices (Reseller Price List) — paginated to prevent timeouts
+    // -------------------------------------------------------------------
+    function escHtml(str){
+      return $('<div>').text(String(str === null || typeof str === 'undefined' ? '' : str)).html();
+    }
+
+    function fmtMoney(val, symbol){
+      var num = parseFloat(val);
+      if(isNaN(num)){ num = 0; }
+      return (symbol || '') + num.toFixed(2);
+    }
+
+    function debounce(fn, wait){
+      var t = null;
+      return function(){
+        var ctx = this, args = arguments;
+        clearTimeout(t);
+        t = setTimeout(function(){ fn.apply(ctx, args); }, wait || 200);
+      };
+    }
+
+    var priceLevelLabels = {
+      gold: 'GOLD',
+      vip: 'VIP',
+      h2h: 'H2H'
+    };
+
+    var priceState = {
+      pid: '',
+      level: '',
+      page: 1,
+      perPage: 10,
+      onlyAllowed: 0,
+      loading: false
+    };
+
+    function getOnlyAllowed(){
+      var onlyAllowed = 0;
+      try {
+        var tmp = $('#liogames-price-matrix').data('onlyAllowed');
+        if(typeof tmp !== 'undefined' && tmp !== null && tmp !== ''){
+          onlyAllowed = parseInt(tmp, 10);
+          if(isNaN(onlyAllowed)){ onlyAllowed = 0; }
+        }
+      } catch(ex){ onlyAllowed = 0; }
+      return onlyAllowed;
+    }
+
+    function normalizeLevel(level){
+      level = String(level || '').toLowerCase().trim();
+      return priceLevelLabels[level] ? level : '';
+    }
+
+    function getSelectedLevel(){
+      return normalizeLevel($('#liog-pl-level').val());
+    }
+
+    function optionAllowedLevels($opt){
+      var raw = String($opt.attr('data-allowed-levels') || '').toLowerCase().trim();
+      if(!raw){ return []; }
+      return raw.split(',').map(function(x){ return normalizeLevel(x); }).filter(function(x){ return !!x; });
+    }
+
+    function buildNominalCell(name, productId, variationId){
+      var nm = escHtml(name || '');
+      var ids = 'P#' + escHtml(productId || '') + (variationId ? (' \u2022 V#' + escHtml(variationId)) : '');
+      return '<div class="liog-pl-nominal">'
+        + '<div class="liog-pl-nominal__name">' + nm + '</div>'
+        + '<div class="liog-pl-nominal__ids">' + ids + '</div>'
+        + '</div>';
+    }
+
+    function cascadePriceLevels(level){
+      level = normalizeLevel(level);
+      if(level === 'gold'){ return ['gold','vip','h2h']; }
+      if(level === 'vip'){ return ['vip','h2h']; }
+      if(level === 'h2h'){ return ['h2h']; }
+      return ['gold','vip','h2h'];
+    }
+
+    function cascadeLevelsFromAllowed(allowed){
+      allowed = (allowed || []).map(function(l){ return normalizeLevel(l); }).filter(function(l){ return !!l; });
+      if(allowed.indexOf('gold') !== -1){ return ['gold','vip','h2h']; }
+      if(allowed.indexOf('vip') !== -1){ return ['vip','h2h']; }
+      if(allowed.indexOf('h2h') !== -1){ return ['h2h']; }
+      return ['gold','vip','h2h'];
+    }
+
+    function getSelectedProductAllowedLevels(){
+      var $opt = $('#liogames-price-product option:selected');
+      if(!$opt.length){ return []; }
+      return optionAllowedLevels($opt);
+    }
+
+    function displayLevelsForCurrentSelection(res){
+      var selected = getSelectedLevel();
+      if(selected){ return cascadePriceLevels(selected); }
+
+      var levels = (res && res.data && res.data.levels) ? res.data.levels : [];
+      if(levels && levels.length){
+        return levels.map(function(l){ return normalizeLevel(l); }).filter(function(l){ return !!l; });
+      }
+
+      return cascadeLevelsFromAllowed(getSelectedProductAllowedLevels());
+    }
+
+    function levelListFromResponse(res){
+      return displayLevelsForCurrentSelection(res);
+    }
+
+    function setPriceTableHeaders(levels, h2hOnly){
+      var $head = $('#liogames-price-table thead tr');
+      if(!$head.length){ return; }
+      levels = levels || [];
+      var html = '<th>Nominal</th><th>PID</th>' + (h2hOnly ? '' : '<th>Normal Price</th>');
+      levels.forEach(function(level){
+        html += '<th class="liog-pl-level-head" data-level="' + escHtml(level) + '">' + escHtml(priceLevelLabels[level] || String(level).toUpperCase()) + '</th>';
+      });
+      $head.html(html);
+    }
+
+    function priceColspan(levels, h2hOnly){
+      return (h2hOnly ? 2 : 3) + ((levels && levels.length) ? levels.length : 3);
+    }
+
+    function renderRows(rows, symbol, levels, h2hOnly){
+      var html = '';
+      levels = (levels && levels.length) ? levels : ['gold','vip','h2h'];
+      rows.forEach(function(r){
+        var productId = r.product_id || '';
+        var varId = r.variation_id || 0;
+        var name = r.name || '';
+        var sku = r.sku || '-';
+        var base = fmtMoney(r.base_price, symbol);
+
+        html += '<tr>'
+          + '<td>' + buildNominalCell(name, productId, varId) + '</td>'
+          + '<td>' + escHtml(sku) + '</td>'
+          + (h2hOnly ? '' : '<td>' + escHtml(base) + '</td>');
+
+        levels.forEach(function(level){
+          var price = (r.prices && typeof r.prices[level] !== 'undefined') ? r.prices[level] : '';
+          html += '<td>' + escHtml(price === '' ? '-' : fmtMoney(price, symbol)) + '</td>';
+        });
+
+        html += '</tr>';
+      });
+      return html;
+    }
+
+    function renderPagination(page, totalPages){
+      var $wrap = $('#liog-pl-pagination');
+      if(!$wrap.length){ return; }
+      if(!totalPages || totalPages <= 1){
+        $wrap.empty();
+        return;
+      }
+
+      function btn(p, label, active, disabled){
+        var cls = 'liog-pl-page-btn';
+        if(active){ cls += ' is-active'; }
+        if(disabled){ cls += ' is-disabled'; }
+        return '<button type="button" class="' + cls + '" data-page="' + escHtml(p) + '"' + (disabled ? ' disabled' : '') + '>' + escHtml(label) + '</button>';
+      }
+
+      var html = '';
+      html += btn(Math.max(1, page-1), '\u2039', false, page <= 1);
+
+      var pages = [];
+      if(totalPages <= 7){
+        for(var i=1;i<=totalPages;i++){ pages.push(i); }
+      } else {
+        pages.push(1);
+        if(page > 3){ pages.push('...'); }
+        var start = Math.max(2, page - 1);
+        var end   = Math.min(totalPages - 1, page + 1);
+        for(var j=start;j<=end;j++){ pages.push(j); }
+        if(page < totalPages - 2){ pages.push('...'); }
+        pages.push(totalPages);
+      }
+
+      pages.forEach(function(p){
+        if(p === '...'){
+          html += '<span class="liog-pl-page-ellipsis">...</span>';
+        } else {
+          html += btn(p, String(p), p === page, false);
+        }
+      });
+
+      html += btn(Math.min(totalPages, page+1), '\u203a', false, page >= totalPages);
+      $wrap.html(html);
+    }
+
+    function fetchMatrixPage(pid, page, perPage){
+      var $err = $('#liogames-price-error');
+      var $loading = $('#liogames-price-loading');
+      var $btn = $('#liogames-load-price-matrix');
+      var $tb = $('#liogames-price-table tbody');
+      var symbol = $('#liogames-price-matrix').data('currency') || '';
+      var selectedLevel = getSelectedLevel();
+      var selectedOpt = $('#liogames-price-product option:selected');
+      var selectedH2hOnly = String(selectedOpt.attr('data-h2h-only') || '0') === '1';
+      var currentLevels = selectedH2hOnly ? ['h2h'] : (selectedLevel ? cascadePriceLevels(selectedLevel) : cascadeLevelsFromAllowed(getSelectedProductAllowedLevels()));
+
+      $err.hide().text('');
+      setPriceTableHeaders(currentLevels, selectedH2hOnly);
+
+      if(!pid){
+        $tb.html('<tr><td colspan="' + priceColspan(currentLevels, selectedH2hOnly) + '">Please select a product first.</td></tr>');
+        renderPagination(1,1);
+        return;
+      }
+
+      if(priceState.loading){ return; }
+
+      priceState.loading = true;
+      $btn.prop('disabled', true);
+      $loading.show();
+
+      var onlyAllowed = getOnlyAllowed();
+      priceState.onlyAllowed = onlyAllowed;
+      priceState.level = selectedLevel;
+
+      $.ajax({
+        url: apiBase + '/products/' + encodeURIComponent(pid)
+          + '/price-matrix?only_allowed=' + encodeURIComponent(String(onlyAllowed))
+          + '&level=' + encodeURIComponent(String(selectedLevel || ''))
+          + '&page=' + encodeURIComponent(String(page || 1))
+          + '&per_page=' + encodeURIComponent(String(perPage || 10)),
+        method: 'GET',
+        dataType: 'json',
+        beforeSend: function(xhr){
+          if(shouldSendNonce()){
+            xhr.setRequestHeader('X-WP-Nonce', window.LiogamesPublic.nonce);
+          }
+        },
+        success: function(res){
+          if(!res || !res.ok){
+            var msg = (res && res.message) ? res.message : 'Failed to load prices.';
+            $err.text(msg).show();
+            $tb.html('<tr><td colspan="' + priceColspan(currentLevels, selectedH2hOnly) + '">' + escHtml(msg) + '</td></tr>');
+            renderPagination(1,1);
+            return;
+          }
+
+          var h2hOnly = !!(res && res.data && res.data.product && res.data.product.h2h_only);
+          var levels = h2hOnly ? ['h2h'] : levelListFromResponse(res);
+          setPriceTableHeaders(levels, h2hOnly);
+
+          var rows = (res.data && res.data.rows) ? res.data.rows : [];
+          var pg = (res.data && res.data.pagination) ? res.data.pagination : null;
+
+          if(!rows.length || !levels.length){
+            $tb.html('<tr><td colspan="' + priceColspan(levels, h2hOnly) + '">No prices found for this product.</td></tr>');
+            renderPagination(1,1);
+            return;
+          }
+
+          $tb.html(renderRows(rows, symbol, levels, h2hOnly));
+
+          if(pg && pg.total_pages){
+            renderPagination(parseInt(pg.page,10) || 1, parseInt(pg.total_pages,10) || 1);
+          } else {
+            renderPagination(1,1);
+          }
+        },
+        error: function(xhr){
+          var msg = 'Request failed. Please try again.';
+          try {
+            if(xhr && xhr.responseJSON && xhr.responseJSON.message){
+              msg = xhr.responseJSON.message;
+            } else if(xhr && xhr.status){
+              msg = 'Request failed (' + xhr.status + '). Please try again.';
+            }
+          } catch(ex){}
+          $err.text(msg).show();
+          $tb.html('<tr><td colspan="' + priceColspan(currentLevels, selectedH2hOnly) + '">' + escHtml(msg) + '</td></tr>');
+          renderPagination(1,1);
+        },
+        complete: function(){
+          priceState.loading = false;
+          $btn.prop('disabled', false);
+          $loading.hide();
+        }
+      });
+    }
+
+    function applyPriceProductFilters(){
+      var $sel = $('#liogames-price-product');
+      var $search = $('#liog-pl-search-product');
+      if(!$sel.length || !$sel.data('liogAllOptions')){ return; }
+
+      var all = $sel.data('liogAllOptions') || [];
+      var term = String($search.val() || '').toLowerCase().trim();
+      var level = getSelectedLevel();
+      var cur = $sel.val();
+      var hasCur = false;
+
+      $sel.empty();
+      all.forEach(function(o){
+        if(!o.value){
+          var $placeholder = $('<option>').val('').text(o.text).attr('data-allowed-levels', '').attr('data-h2h-only', '0');
+          $sel.append($placeholder);
+          return;
+        }
+
+        var textMatch = !term || String(o.text).toLowerCase().indexOf(term) !== -1;
+        var levelMatch = true;
+        if(level){
+          levelMatch = o.allowed.indexOf(level) !== -1;
+        }
+        if(textMatch && levelMatch){
+          var $opt = $('<option>').val(o.value).text(o.text).attr('data-allowed-levels', o.allowed.join(',')).attr('data-h2h-only', o.h2hOnly ? '1' : '0');
+          $sel.append($opt);
+          if(String(o.value) === String(cur)){ hasCur = true; }
+        }
+      });
+
+      if(cur && hasCur){
+        $sel.val(cur);
+      } else if(cur && !hasCur){
+        $sel.val('');
+        priceState.pid = '';
+        var displayLevels = level ? cascadePriceLevels(level) : ['gold','vip','h2h'];
+        setPriceTableHeaders(displayLevels);
+        $('#liogames-price-table tbody').html('<tr><td colspan="' + priceColspan(displayLevels) + '">Selected product is not available for this level.</td></tr>');
+        renderPagination(1,1);
+      }
+    }
+
+    // Keep a copy of all product options for search + level filter.
+    $(function(){
+      var $sel = $('#liogames-price-product');
+      var $search = $('#liog-pl-search-product');
+      var $level = $('#liog-pl-level');
+      if($sel.length && $search.length){
+        var all = [];
+        $sel.find('option').each(function(){
+          var $opt = $(this);
+          all.push({ value: this.value, text: $opt.text(), allowed: optionAllowedLevels($opt), h2hOnly: String($opt.attr('data-h2h-only') || '0') === '1' });
+        });
+        $sel.data('liogAllOptions', all);
+
+        $search.on('input', debounce(function(){
+          applyPriceProductFilters();
+        }, 180));
+
+        if($level.length){
+          $level.on('change', function(){
+            var selectedLevel = getSelectedLevel();
+            priceState.level = selectedLevel;
+            priceState.page = 1;
+            applyPriceProductFilters();
+            var pid = $sel.val();
+            var pp = parseInt($('#liog-pl-per-page').val(), 10);
+            priceState.perPage = isNaN(pp) ? 10 : pp;
+            if(pid){
+              fetchMatrixPage(pid, 1, priceState.perPage);
+            } else {
+              var displayLevels = selectedLevel ? cascadePriceLevels(selectedLevel) : ['gold','vip','h2h'];
+              setPriceTableHeaders(displayLevels);
+              $('#liogames-price-table tbody').html('<tr><td colspan="' + priceColspan(displayLevels) + '">Select a product and click Load.</td></tr>');
+              renderPagination(1,1);
+            }
+          });
+        }
+      }
+    });
+
+    $('body').on('click', '#liogames-load-price-matrix', function(){
+      priceState.pid = $('#liogames-price-product').val();
+      priceState.level = getSelectedLevel();
+      priceState.page = 1;
+      var pp = parseInt($('#liog-pl-per-page').val(), 10);
+      priceState.perPage = isNaN(pp) ? 10 : pp;
+      fetchMatrixPage(priceState.pid, priceState.page, priceState.perPage);
+    });
+
+    // Auto-load on product selection (UX like a reseller price list page).
+    $('body').on('change', '#liogames-price-product', function(){
+      var pid = $(this).val();
+      if(!pid){ return; }
+      priceState.pid = pid;
+      priceState.level = getSelectedLevel();
+      priceState.page = 1;
+      var pp = parseInt($('#liog-pl-per-page').val(), 10);
+      priceState.perPage = isNaN(pp) ? 10 : pp;
+      fetchMatrixPage(pid, 1, priceState.perPage);
+    });
+
+    $('body').on('change', '#liog-pl-per-page', function(){
+      var pid = $('#liogames-price-product').val();
+      if(!pid){ return; }
+      var pp = parseInt($(this).val(), 10);
+      priceState.perPage = isNaN(pp) ? 10 : pp;
+      priceState.page = 1;
+      fetchMatrixPage(pid, 1, priceState.perPage);
+    });
+
+    $('body').on('click', '.liog-pl-page-btn', function(){
+      var pid = $('#liogames-price-product').val();
+      if(!pid){ return; }
+      var p = parseInt($(this).data('page'), 10);
+      if(isNaN(p) || p < 1){ return; }
+      priceState.page = p;
+      fetchMatrixPage(pid, p, priceState.perPage);
+    });
+
+
+    // Add Verification link to the custom profile popup without touching theme templates.
+    $(function(){
+      try {
+        var $menus = $('.lio-g2-profile-menu__items');
+        if(!$menus.length){ return; }
+        $menus.each(function(){
+          var $menu = $(this);
+          if($menu.find('a[href*="liog-tab=verification"]').length){ return; }
+          var base = window.location.href.split('#')[0];
+          var clean = base.replace(/([?&])liog-tab=[^&]*/,'$1').replace(/[?&]$/,'');
+          var sep = clean.indexOf('?') === -1 ? '?' : '&';
+          var url = clean + sep + 'liog-tab=verification';
+          var html = '<a class="lio-g2-profile-menu__item liog-profile-verification-link" href="' + url + '">'
+            + '<span class="dashicons dashicons-shield-alt" aria-hidden="true"></span>'
+            + '<span>Verification</span>'
+            + '</a>';
+          // Put it after Orders if possible; otherwise prepend.
+          var $orders = $menu.find('a[href*="orders"]').first();
+          if($orders.length){ $orders.after(html); } else { $menu.prepend(html); }
+        });
+      } catch(e){}
+    });
+
+
+    // -------------------------------------------------------------------
+    // Upgrade request (manual approval)
+    // -------------------------------------------------------------------
+    $('body').on('click', '.liogames-upgrade-request-btn', function(e){
+      e.preventDefault();
+      var $btn = $(this);
+      var level = $btn.data('level');
+      if(!level){ return; }
+
+      var $msg = $('#liogames-upgrade-message');
+      if($msg.length){
+        $msg.hide().empty();
+      }
+
+      $btn.prop('disabled', true).addClass('is-loading');
+
+      $.ajax({
+        url: apiBase + '/upgrade-request',
+        method: 'POST',
+        data: JSON.stringify({ level: level }),
+        contentType: 'application/json',
+        dataType: 'json',
+        beforeSend: function(xhr){
+          if(window.LiogamesPublic && window.LiogamesPublic.nonce){
+            xhr.setRequestHeader('X-WP-Nonce', window.LiogamesPublic.nonce);
+          }
+        },
+        success: function(res){
+          var ok = !!(res && res.ok);
+          var text = (res && res.message) ? res.message : (ok ? 'Request submitted' : 'Request failed');
+          if($msg.length){
+            $msg.html('<div class="' + (ok ? 'woocommerce-message' : 'woocommerce-error') + '">' + $('<div>').text(text).html() + '</div>').show();
+          }
+          if(ok){
+            window.location.reload();
+          }
+        },
+        error: function(xhr){
+          var msg = 'Request failed. Please try again.';
+          try {
+            if(xhr && xhr.responseJSON && xhr.responseJSON.message){
+              msg = xhr.responseJSON.message;
+            }
+          } catch(ex){}
+          if($msg.length){
+            $msg.html('<div class="woocommerce-error">' + $('<div>').text(msg).html() + '</div>').show();
+          }
+        },
+        complete: function(){
+          $btn.prop('disabled', false).removeClass('is-loading');
+        }
+      });
+    });
+
+    // -------------------------------------------------------------------
+    // Products page (My Account) — level-wise list + manual buy
+    // -------------------------------------------------------------------
+    // NOTE: Do NOT rely on page-ready DOM existence. Some account templates
+    // (or caching/optimization plugins) can replace content dynamically.
+    // We therefore bind all events using delegation and resolve DOM nodes
+    // at the moment the user clicks.
+
+    function productsPageExists(){
+      return $('#liog-products-page').length > 0;
+    }
+
+    function modalEls(){
+      // Disable browser native pattern bubbles on the manual order form.
+      // The REST API validates inputs and returns cleaner errors.
+      try { $('#liog-buy-form').attr('novalidate', 'novalidate'); } catch(e){}
+      return {
+        $modal: $('#liogames-buy-modal'),
+        $fields: $('#liog-buy-fields'),
+        $err: $('#liog-buy-error'),
+        $ok: $('#liog-buy-success'),
+        $loading: $('#liog-buy-loading'),
+        $submit: $('#liog-buy-submit')
+      };
+    }
+
+    function openModal(){
+      var el = modalEls();
+      if(el.$modal.length){
+        el.$modal.addClass('is-open');
+      }
+    }
+    function closeModal(){
+      var el = modalEls();
+      if(el.$modal.length){
+        el.$modal.removeClass('is-open');
+      }
+    }
+
+    function resetBuyMessages(){
+      var el = modalEls();
+      if(el.$err.length){ el.$err.hide().empty(); }
+      if(el.$ok.length){ el.$ok.hide().empty(); }
+    }
+
+    function showBuyError(msg){
+      resetBuyMessages();
+      var el = modalEls();
+      if(el.$err.length){
+        el.$err.html('<div class="woocommerce-error">' + escHtml(msg || 'Something went wrong') + '</div>').show();
+      } else {
+        alert(msg || 'Something went wrong');
+      }
+    }
+    function showBuySuccess(html){
+      resetBuyMessages();
+      var el = modalEls();
+      if(el.$ok.length){
+        el.$ok.html('<div class="woocommerce-message">' + html + '</div>').show();
+      }
+    }
+
+      function serverLabelFromValue(v){
+        if(!v){ return v; }
+        v = String(v);
+        var vv = v.toLowerCase();
+        if(vv.indexOf('asia') !== -1){ return 'Asia'; }
+        if(vv.indexOf('usa') !== -1 || vv.indexOf('america') !== -1){ return 'America'; }
+        if(vv.indexOf('eur') !== -1 || vv.indexOf('euro') !== -1){ return 'Europe'; }
+        if(vv.indexOf('cht') !== -1 || vv.indexOf('tw') !== -1 || vv.indexOf('hk') !== -1){ return 'TW, HK, MO'; }
+        return v;
+      }
+
+      function getSchemaField(schema, key){
+        try {
+          if(!schema || !Array.isArray(schema.fields)){
+            return null;
+          }
+          for(var i=0;i<schema.fields.length;i++){
+            var f = schema.fields[i];
+            if(f && String(f.key || '') === String(key)){
+              return f;
+            }
+          }
+        } catch(e){}
+        return null;
+      }
+
+      function safeText(v, fallback){
+        var s = '';
+        try { s = String(v || ''); } catch(e){ s = ''; }
+        s = s.trim();
+        return s || fallback;
+      }
+
+      function renderSchema(schema){
+        var el = modalEls();
+        schema = schema || {};
+        liogCurrentSchema = schema;
+
+        var fields = Array.isArray(schema.fields) ? schema.fields : [];
+        var fixedUid = (schema && schema.fixed_user_id) ? String(schema.fixed_user_id) : '';
+        var html = '';
+
+        if(fixedUid){
+          html += '<input type="hidden" class="liog-buy-order-field" data-field-key="user_id" value="' + escHtml(fixedUid) + '">';
+        }
+
+        for(var i=0;i<fields.length;i++){
+          var f = fields[i] || {};
+          var key = String(f.key || '').trim();
+          if(!key || !/^[a-zA-Z0-9_-]+$/.test(key)){ continue; }
+
+          var label = safeText(f.label, key.replace(/_/g, ' '));
+          var type = String(f.type || 'text').toLowerCase();
+          var required = (f.required !== false);
+          var placeholder = safeText(f.placeholder, 'Enter ' + label);
+          var pattern = safeText(f.pattern, '');
+          var inputmode = safeText(f.inputmode, pattern && pattern.indexOf('\\d') !== -1 ? 'numeric' : 'text');
+          var id = 'liog-buy-field-' + key.replace(/[^a-zA-Z0-9_-]/g, '-');
+
+          html += '<div class="form-row form-row-wide liog-buy-field-row" data-field-row="' + escHtml(key) + '">';
+          html += '<label for="' + escHtml(id) + '">' + escHtml(label) + (required ? ' <span class="required">*</span>' : '') + '</label>';
+
+          if(type === 'select' && Array.isArray(f.options) && f.options.length){
+            html += '<select id="' + escHtml(id) + '" class="liog-buy-order-field" data-field-key="' + escHtml(key) + '"' + (required ? ' required' : '') + '>';
+            html += '<option value="">Select ' + escHtml(label) + '</option>';
+            for(var j=0;j<f.options.length;j++){
+              var o = f.options[j] || {};
+              var val = safeText(o.value, '');
+              var lab = safeText(o.label, val);
+              if(!val){ continue; }
+              html += '<option value="' + escHtml(val) + '">' + escHtml(lab) + '</option>';
+            }
+            html += '</select>';
+          } else {
+            html += '<input type="text" id="' + escHtml(id) + '" class="liog-buy-order-field" data-field-key="' + escHtml(key) + '" placeholder="' + escHtml(placeholder) + '" autocomplete="off" inputmode="' + escHtml(inputmode) + '"' + (pattern ? ' pattern="' + escHtml(pattern) + '"' : '') + (required ? ' required' : '') + '>';
+          }
+
+          if(f.hint){
+            html += '<small class="liog-buy-field-hint">' + escHtml(String(f.hint)) + '</small>';
+          }
+          html += '</div>';
+        }
+
+        if(!fields.length && !fixedUid){
+          html = '<div class="form-row form-row-wide" style="padding:8px 0; color:#8fa0b8;">No additional account details are required for this product.</div>';
+        }
+
+        if(el.$fields.length){
+          el.$fields.html(html);
+        }
+      }
+
+      function loadSchema(productId, variationId){
+        var el = modalEls();
+        if(el.$fields.length){
+          el.$fields.html('<div style="padding:8px 0; color:#666;">Loading inputs...</div>');
+        }
+        $.ajax({
+          url: apiBase + '/product-schema',
+          method: 'GET',
+          dataType: 'json',
+          data: {
+            product_id: productId,
+            variation_id: variationId || 0
+          },
+          beforeSend: function(xhr){
+            if(shouldSendNonce()){
+              xhr.setRequestHeader('X-WP-Nonce', window.LiogamesPublic.nonce);
+            }
+          },
+          success: function(res){
+            var schema = (res && res.data && res.data.schema) ? res.data.schema : null;
+            if(schema && res && res.data && res.data.profile){
+              schema.profile = String(res.data.profile);
+            }
+            if(!schema){
+              liogCurrentSchema = { invalid: true };
+              if(el.$fields.length){ el.$fields.html('<div class="woocommerce-error">Product input requirements are temporarily unavailable. Please try again.</div>'); }
+              return;
+            }
+            renderSchema(schema);
+          },
+          error: function(){
+            liogCurrentSchema = { invalid: true };
+            if(el.$fields.length){ el.$fields.html('<div class="woocommerce-error">Product input requirements are temporarily unavailable. Please try again.</div>'); }
+          }
+        });
+      }
+
+      function lockKey(pid, vid, uid, sid){
+        return 'liog_lock_' + String(pid) + '_' + String(vid || 0) + '_' + String(uid || '') + '_' + String(sid || '');
+      }
+      function isLocked(key){
+        try {
+          var ts = parseInt(localStorage.getItem(key), 10);
+          if(!ts){ return 0; }
+          var now = Date.now();
+          var diff = Math.floor((now - ts) / 1000);
+          if(diff < 60){
+            return 60 - diff;
+          }
+          localStorage.removeItem(key);
+        } catch(e){}
+        return 0;
+      }
+      function setLock(key){
+        try { localStorage.setItem(key, String(Date.now())); } catch(e){}
+      }
+
+      // Open modal
+      $('body').on('click', '.liog-buy-btn', function(){
+        if(!productsPageExists()){
+          return;
+        }
+        var $btn = $(this);
+        if($btn.is('[disabled]')){ return; }
+
+        var $row = $btn.closest('tr.liog-prod-row');
+        if(!$row.length){ return; }
+
+        resetBuyMessages();
+
+        var pid = $row.data('pid');
+        var vid = $row.data('vid') || 0;
+        var name = $row.data('name') || '';
+        var img = $row.data('img') || '';
+        var priceLabel = $row.data('your-price-label') || '';
+
+        $('#liog-buy-product-id').val(pid);
+        $('#liog-buy-variation-id').val(vid);
+        $('#liog-buy-title').text(name);
+        $('#liog-buy-price').text(priceLabel);
+
+        var $img = $('#liog-buy-img');
+        if(img){
+          $img.attr('src', img).show();
+        } else {
+          $img.hide();
+        }
+
+        loadSchema(pid, vid);
+        openModal();
+      });
+
+      // Close modal
+      $('body').on('click', '#liogames-buy-modal .liogames-modal__close', function(){
+        closeModal();
+      });
+      $('body').on('click', '#liogames-buy-modal', function(e){
+        if(e.target === this){
+          closeModal();
+        }
+      });
+
+      // Submit buy
+      $('body').on('submit', '#liog-buy-form', function(e){
+        e.preventDefault();
+        resetBuyMessages();
+
+        if(isDemoPreviewActive()){
+          showBuyError(demoPreviewMessage());
+          return;
+        }
+
+        var pid = parseInt($('#liog-buy-product-id').val(), 10) || 0;
+        var vid = parseInt($('#liog-buy-variation-id').val(), 10) || 0;
+        if(!pid){
+          showBuyError('Invalid product.');
+          return;
+        }
+        if(liogCurrentSchema && liogCurrentSchema.invalid){
+          showBuyError('Product input requirements are temporarily unavailable. Please try again.');
+          return;
+        }
+
+        var orderFields = {};
+        var invalidField = '';
+        $('#liog-buy-fields .liog-buy-order-field').each(function(){
+          var $f = $(this);
+          var key = String($f.attr('data-field-key') || '').trim();
+          if(!key){ return; }
+          var val = String($f.val() || '').trim();
+          if($f.prop('required') && !val && !invalidField){ invalidField = key; }
+          if(val){ orderFields[key] = val; }
+        });
+        if(invalidField){
+          showBuyError('Please complete all required product details.');
+          return;
+        }
+
+        var uidVal = String(orderFields.user_id || orderFields.player_id || orderFields.account_id || orderFields.role_id || '');
+        var sidVal = String(orderFields.server_id || orderFields.server || orderFields.zone_id || orderFields.region || '');
+        var lk = lockKey(pid, vid, JSON.stringify(orderFields), '');
+        var wait = isLocked(lk);
+        if(wait > 0){
+          showBuyError('Please wait ' + wait + ' seconds to avoid duplicate orders (60s lock).');
+          return;
+        }
+
+        var el = modalEls();
+        if(el.$submit.length){ el.$submit.prop('disabled', true); }
+        if(el.$loading.length){ el.$loading.show(); }
+
+        var payload = {
+          product_id: pid,
+          variation_id: vid,
+          qty: 1,
+          order_fields: orderFields
+        };
+        // Backward-compatible top-level aliases for existing partner/order code.
+        if(orderFields.user_id){ payload.user_id = orderFields.user_id; }
+        else if(orderFields.player_id){ payload.player_id = orderFields.player_id; }
+        if(orderFields.server_id){ payload.server_id = orderFields.server_id; }
+
+        $.ajax({
+          url: apiBase + '/order-create-self',
+          method: 'POST',
+          data: JSON.stringify(payload),
+          contentType: 'application/json',
+          dataType: 'json',
+          beforeSend: function(xhr){
+            if(window.LiogamesPublic && window.LiogamesPublic.nonce){
+              xhr.setRequestHeader('X-WP-Nonce', window.LiogamesPublic.nonce);
+            }
+          },
+          success: function(res){
+            if(res && res.ok){
+              setLock(lk);
+
+              var d = res.data || {};
+              var oid = d.order_id || res.order_id;
+              var msg = (res.message) ? res.message : 'Order created';
+
+              var html = '<div>' + escHtml(msg) + '</div>';
+              if(oid){
+                html += '<div style="margin-top:6px;">Order ID: <strong>' + escHtml(String(oid)) + '</strong></div>';
+                var baseUrl = (window.LiogamesPublic && window.LiogamesPublic.myAccountUrl) ? String(window.LiogamesPublic.myAccountUrl) : '/my-account/';
+                if(baseUrl.slice(-1) !== '/') { baseUrl += '/'; }
+                html += '<div style="margin-top:8px;"><a class="button" href="' + escHtml(baseUrl + 'view-order/' + String(oid) + '/') + '">View Order</a></div>';
+              }
+
+              showBuySuccess(html);
+            } else {
+              var em = (res && res.message) ? res.message : 'Order failed.';
+              showBuyError(em);
+            }
+          },
+          error: function(xhr){
+            var msg = 'Order failed. Please try again.';
+            try {
+              if(xhr && xhr.responseJSON){
+                if(xhr.responseJSON.code === 'INSUFFICIENT_BALANCE'){
+                  msg = xhr.responseJSON.message || 'Low balance.';
+                  try {
+                    var dd = xhr.responseJSON.data || {};
+                    if(dd && (dd.wallet_balance !== undefined || dd.required_amount !== undefined)){
+                      msg += ' (Wallet: ' + String(dd.wallet_balance) + ', Required: ' + String(dd.required_amount) + ')';
+                    }
+                  } catch(e){}
+                } else if(xhr.responseJSON.message){
+                  msg = xhr.responseJSON.message;
+                }
+              }
+            } catch(ex){}
+            showBuyError(msg);
+          },
+          complete: function(){
+            var el2 = modalEls();
+            if(el2.$submit.length){ el2.$submit.prop('disabled', false); }
+            if(el2.$loading.length){ el2.$loading.hide(); }
+          }
+        });
+      });
+
+
+      // -----------------------------------------------------------------
+      // Demo preview safety guard
+      // -----------------------------------------------------------------
+      $('body').on('submit', 'form', function(e){
+        if(!isDemoPreviewActive()){ return; }
+        var $form = $(this);
+        if($form.is('#liog-demo-preview-form') || $form.attr('data-liog-allow-demo') === '1'){ return; }
+        if($form.is('.woocommerce-form-login, .woocommerce-form-register, .woocommerce-ResetPassword, .lost_reset_password')){ return; }
+        if($form.closest('.liog-auth-page').length){ return; }
+        var method = String($form.attr('method') || 'get').toLowerCase();
+        if(method !== 'post'){ return; }
+        e.preventDefault();
+        showDemoPreviewAlert();
+      });
+
+      $('body').on('click', 'button, input[type=submit], a.button, .button', function(e){
+        if(!isDemoPreviewActive()){ return; }
+        var $el = $(this);
+        if($el.closest('#liog-demo-preview-form, .liog-auth-page').length){ return; }
+        if($el.is('.liog-buy-btn')){ return; }
+        if($el.attr('href') && String($el.attr('href')).indexOf('customer-logout') !== -1){ return; }
+        if($el.closest('form.woocommerce-form-login, form.woocommerce-form-register, form.woocommerce-ResetPassword, form.lost_reset_password').length){ return; }
+        var txt = String(($el.text && $el.text()) || $el.val() || '').toLowerCase();
+        if(/deposit|add now|buy now|save|submit|generate|delete|request|upgrade|confirm/.test(txt)){
+          if($el.closest('form').length === 0){
+            e.preventDefault();
+            showDemoPreviewAlert();
+          }
+        }
+      });
+
+
+      // Username pages under existing API Integration menu
+      (function setupUsernameApiMenu(){
+        var $nav = $('.woocommerce-MyAccount-navigation ul').first();
+        if(!$nav.length){ return; }
+
+        var $checker = $nav.find('li.woocommerce-MyAccount-navigation-link--liog-username-checker').first();
+        var $usernameDocs = $nav.find('li.woocommerce-MyAccount-navigation-link--liog-username-docs').first();
+        if(!$checker.length || !$usernameDocs.length){ return; }
+
+        // Prefer the existing API docs/integration item as the parent anchor.
+        var $apiParent = $nav.children('li.woocommerce-MyAccount-navigation-link--liog-docs').first();
+        if(!$apiParent.length){
+          $apiParent = $nav.children('li').filter(function(){
+            var txt = $.trim($(this).children('a').first().text()).toLowerCase();
+            return txt === 'api integration' || txt === 'api documentation';
+          }).first();
+        }
+        if(!$apiParent.length){ return; }
+
+        $apiParent.addClass('liog-api-parent');
+
+        var $submenu = $apiParent.children('ul.liog-api-submenu').first();
+        if(!$submenu.length){
+          $submenu = $('<ul class="liog-submenu liog-api-submenu"></ul>');
+          $apiParent.append($submenu);
+        }
+
+        if(!$checker.parent().is($submenu)){ $submenu.append($checker); }
+        if(!$usernameDocs.parent().is($submenu)){ $submenu.append($usernameDocs); }
+
+        // Hide any accidental duplicate nested item labels that may have been rendered by older builds.
+        $submenu.children('li').each(function(){
+          var $li = $(this);
+          var txt = $.trim($li.children('a').first().text()).toLowerCase();
+          if(txt === 'username api integration'){
+            $li.remove();
+          }
+        });
+
+        var active = $checker.hasClass('is-active') || $usernameDocs.hasClass('is-active') || $apiParent.hasClass('is-active');
+        $apiParent.toggleClass('liog-open', active);
+        if(active){ $submenu.show(); }
+      })();
+
+      // -----------------------------------------------------------------
+      // Products selector UI (Category -> Product -> Variations)
+      // -----------------------------------------------------------------
+      function getActiveCat(){
+        var $t = $('.liog-prod-tab.is-active');
+        return String($t.data('cat') || '').trim();
+      }
+
+      function chipHasCat($chip, cat){
+        if(!cat){ return true; }
+        var cats = String($chip.data('cats') || '');
+        return ((',' + cats + ',').indexOf(',' + cat + ',') !== -1);
+      }
+
+      var liogProductsBatchSize = 25;
+      var liogProductOptionsCache = {};
+
+      function hydrateProductChip($c){
+        var $img = $c.find('img[data-src]').first();
+        if($img.length){
+          var src = String($img.attr('data-src') || '');
+          if(src){ $img.attr('src', src).removeAttr('data-src'); }
+        }
+      }
+
+      function chipMatchesFilters($c){
+        var query = String($('#liog-prod-search').val() || '').toLowerCase().trim();
+        var cat = getActiveCat();
+        var name = String($c.data('name') || '').toLowerCase();
+        var pid = String($c.data('pid') || '');
+        var okCat = chipHasCat($c, cat);
+        var okQuery = (!query) ? true : (name.indexOf(query) !== -1 || pid.indexOf(query) !== -1);
+        return okCat && okQuery;
+      }
+
+      function updateProductCounts(){
+        var visible = $('.liog-game-chip').filter(function(){ return chipMatchesFilters($(this)) && !$(this).hasClass('is-lazy-deferred'); }).length;
+        var total = $('.liog-game-chip').filter(function(){ return chipMatchesFilters($(this)); }).length;
+        $('#liog-prod-visible-count').text(String(visible));
+        $('#liog-prod-total-count').text(String(total));
+        $('#liog-prod-empty').prop('hidden', total > 0);
+        $('#liog-prod-games').toggleClass('is-empty', total === 0);
+        var remaining = Math.max(0, total - visible);
+        var $more = $('#liog-prod-load-more');
+        $more.prop('hidden', total === 0 || remaining <= 0);
+        $more.find('span').text(remaining > 0 ? ('Load ' + String(Math.min(liogProductsBatchSize, remaining)) + ' more products') : 'All products loaded');
+        $('#liog-prod-load-more-meta').text(remaining > 0 ? (String(remaining) + ' remaining') : 'All matching products are visible');
+      }
+
+      function revealNextProductBatch(){
+        var $eligible = $('.liog-game-chip.is-lazy-deferred').filter(function(){ return chipMatchesFilters($(this)); }).slice(0, liogProductsBatchSize);
+        $eligible.each(function(){
+          var $c=$(this); $c.removeClass('is-lazy-deferred').show(); hydrateProductChip($c);
+        });
+        updateProductCounts();
+      }
+
+      function resetProductBatch(){
+        $('.liog-game-chip').each(function(){
+          var $c=$(this);
+          if(chipMatchesFilters($c)){
+            $c.addClass('is-lazy-deferred').hide();
+          } else {
+            $c.hide();
+          }
+        });
+        revealNextProductBatch();
+      }
+
+      function clearSelection(){
+        if(!productsPageExists()){ return; }
+        $('.liog-game-chip').removeClass('is-active');
+        $('#liog-prod-selected-title').text('Select a product');
+        $('#liog-prod-selected-meta').text('');
+        $('#liog-prod-table').removeClass('is-h2h-only is-loading');
+        $('#liog-prod-table tbody tr.liog-prod-row').remove();
+        $('#liog-prod-placeholder').show().find('td').text('Select a product to see available options.');
+      }
+
+      function escAttrText(v){ return escHtml(String(v == null ? '' : v)); }
+
+      function renderPanelProductOptions(pid, rows, productImg, demoPreview){
+        var html='';
+        rows = Array.isArray(rows) ? rows : [];
+        for(var i=0;i<rows.length;i++){
+          var r=rows[i]||{};
+          var active=!!r.active;
+          var h2hOnly=!!r.h2h_only;
+          var allowed=(r.ordering_allowed !== false);
+          var vid=parseInt(r.variation_id,10)||0;
+          var name=String(r.name||'');
+          var ids='P#'+String(pid)+(vid?' • V#'+String(vid):'')+(r.sku?' • '+String(r.sku):'');
+          var buy='';
+          if(h2hOnly && !allowed){ buy='<button type="button" class="button liog-buy-btn liog-buy-btn--h2h" disabled>H2H Level Required</button>'; }
+          else if(active){ buy='<button type="button" class="button liog-buy-btn">'+(demoPreview?'Preview':'Buy')+'</button>'; }
+          else { buy='<button type="button" class="button liog-buy-btn" disabled>Unavailable</button>'; }
+          html += '<tr class="liog-prod-row" data-name="'+escAttrText(name)+'" data-pid="'+String(pid)+'" data-vid="'+String(vid)+'" data-img="'+escAttrText(productImg||'')+'" data-your-price="'+escAttrText(r.your_price||0)+'" data-your-price-label="'+escAttrText(r.your_label||'')+'" data-h2h-only="'+(h2hOnly?'1':'0')+'">'
+            + '<td class="liog-prod-name"><div class="liog-prod-name__main">'+escHtml(name)+'</div><div class="liog-prod-name__meta">'+escHtml(ids)+'</div></td>'
+            + '<td class="liog-prod-price" data-tier="gold" data-label="GOLD / Base">'+escHtml(r.gold_label||'—')+'</td>'
+            + '<td class="liog-prod-price" data-tier="vip" data-label="VIP">'+escHtml(r.vip_label||'—')+'</td>'
+            + '<td class="liog-prod-price" data-tier="h2h" data-label="H2H">'+escHtml(r.h2h_label||'—')+'</td>'
+            + '<td class="liog-prod-status" data-label="Status"><span class="liog-status liog-status--'+(active?'ok':'bad')+'">'+(active?'ACTIVE':'MAINTENANCE')+'</span></td>'
+            + '<td class="liog-prod-buy">'+buy+'</td></tr>';
+        }
+        $('#liog-prod-table tbody tr.liog-prod-row').remove();
+        if(html){ $('#liog-prod-table tbody').append(html); $('#liog-prod-placeholder').hide(); }
+        else { $('#liog-prod-placeholder').show().find('td').text('No available options for this product.'); }
+      }
+
+      function loadPanelProductOptions($chip){
+        var pid=parseInt($chip.data('pid'),10)||0;
+        if(!pid){ return; }
+        var productImg=String($chip.data('img')||'');
+        $('#liog-prod-table').addClass('is-loading');
+        $('#liog-prod-table tbody tr.liog-prod-row').remove();
+        $('#liog-prod-placeholder').show().find('td').text('Loading product options...');
+        if(liogProductOptionsCache[pid]){
+          var cached=liogProductOptionsCache[pid];
+          renderPanelProductOptions(pid,cached.options,productImg,!!cached.demo_preview);
+          $('#liog-prod-table').removeClass('is-loading');
+          return;
+        }
+        $.ajax({
+          url: apiBase + '/panel/products/' + String(pid) + '/options', method:'GET', dataType:'json',
+          beforeSend:function(xhr){ if(shouldSendNonce()){ xhr.setRequestHeader('X-WP-Nonce',window.LiogamesPublic.nonce); } },
+          success:function(res){
+            var data=(res&&res.data)?res.data:{};
+            liogProductOptionsCache[pid]=data;
+            renderPanelProductOptions(pid,data.options||[],productImg,!!data.demo_preview);
+          },
+          error:function(xhr){
+            var msg='Could not load product options. Please try again.';
+            try{ if(xhr&&xhr.responseJSON&&xhr.responseJSON.message){ msg=xhr.responseJSON.message; } }catch(e){}
+            $('#liog-prod-placeholder').show().find('td').text(msg);
+          },
+          complete:function(){ $('#liog-prod-table').removeClass('is-loading'); }
+        });
+      }
+
+      function selectProduct($chip){
+        if(!productsPageExists()){ return; }
+        var pid=parseInt($chip.data('pid'),10)||0; if(!pid){return;}
+        $('.liog-game-chip').removeClass('is-active'); $chip.addClass('is-active');
+        var name=String($chip.data('name')||'');
+        var optionCount=parseInt($chip.data('options'),10)||0;
+        var h2hOnly=parseInt($chip.attr('data-h2h-only')||'0',10)===1;
+        $('#liog-prod-selected-title').text(name);
+        $('#liog-prod-selected-meta').text('Product ID: #'+String(pid)+(optionCount?' • '+String(optionCount)+(optionCount===1?' option':' options'):'')+(h2hOnly?' • H2H Level Only':''));
+        $('#liog-prod-table').toggleClass('is-h2h-only',h2hOnly);
+        loadPanelProductOptions($chip);
+      }
+
+      function filterProducts(){
+        if(!productsPageExists()){ return; }
+        var $sel=$('.liog-game-chip.is-active');
+        if($sel.length && !chipMatchesFilters($sel)){ clearSelection(); }
+        resetProductBatch();
+      }
+
+      $('body').on('click','.liog-prod-tab',function(){
+        if(!productsPageExists()){return;}
+        $('.liog-prod-tab').removeClass('is-active').attr('aria-pressed','false');
+        $(this).addClass('is-active').attr('aria-pressed','true'); clearSelection(); filterProducts();
+      });
+      $('body').on('input','#liog-prod-search',debounce(function(){ filterProducts(); },180));
+      $('body').on('click','.liog-game-chip',function(){ if($(this).is(':visible')){ selectProduct($(this)); } });
+      $('body').on('click','#liog-prod-load-more',function(e){
+        e.preventDefault();
+        revealNextProductBatch();
+      });
+
+      (function initProductsPanel(){
+        if(!productsPageExists()){return;}
+        $('body').addClass('liog-products-active');
+        var $card=$('#liog-products-page .liog-prod-card');
+        var defCat=''; try{defCat=String($card.data('defaultCat')||'').trim();}catch(e){}
+        if(defCat){ $('.liog-prod-tab').removeClass('is-active'); $('.liog-prod-tab[data-cat="'+defCat.replace(/"/g,'')+'"]').addClass('is-active'); }
+        clearSelection(); filterProducts();
+        var $games=$('#liog-prod-games');
+        $games.off('scroll.liogProducts').on('scroll.liogProducts',debounce(function(){
+          var el=this;
+          if(!el){return;}
+          if(el.scrollTop + el.clientHeight >= el.scrollHeight - 90){ revealNextProductBatch(); }
+        },90));
+
+        // Page-scroll progressive loading. The previous build listened only to
+        // the inner product grid, so pages where the first batch did not create
+        // an internal scrollbar could never trigger another batch.
+        var moreEl=document.getElementById('liog-prod-load-more');
+        if(moreEl && 'IntersectionObserver' in window){
+          try{
+            var liogProductsAutoArmed=false;
+            window.addEventListener('scroll',function(){ liogProductsAutoArmed=true; },{once:true,passive:true});
+            var productMoreObserver=new IntersectionObserver(function(entries){
+              entries.forEach(function(entry){
+                if(liogProductsAutoArmed && entry.isIntersecting && !moreEl.hidden){ revealNextProductBatch(); }
+              });
+            },{root:null,rootMargin:'80px 0px',threshold:0.05});
+            productMoreObserver.observe(moreEl);
+          }catch(e){}
+        }
+      })();
+
+      // Dashboard support-card cleanup / placement.
+      (function enhanceDashboardSupportCard(){
+        var search = window.location.search || '';
+        if(search.indexOf('liog-tab=') !== -1){
+          return;
+        }
+
+        function currentEffectiveLevel(){
+          if(window.LiogamesPublic && window.LiogamesPublic.demoPreview){
+            return String(window.LiogamesPublic.demoPreview.effectiveLevel || window.LiogamesPublic.demoPreview.realLevel || '').toLowerCase();
+          }
+          return '';
+        }
+
+        function findDashboardContent(){
+          return $('.woocommerce-MyAccount-content').first();
+        }
+
+        function findSafeLegacyBlock($content){
+          var $found = $();
+          $content.find('h1,h2,h3,h4,h5,h6').each(function(){
+            var $heading = $(this);
+            if($heading.closest('.liog-dashboard-support-panel').length){
+              return;
+            }
+            if($.trim($heading.text()).toLowerCase() !== 'special support'){
+              return;
+            }
+            var $parents = $heading.parents('div');
+            $parents.each(function(){
+              var $el = $(this);
+              if(!$el.closest('.woocommerce-MyAccount-content').is($content)){
+                return;
+              }
+              var txt = $.trim($el.text()).toLowerCase();
+              var looksLikeSupport = txt.indexOf('special support') !== -1 && (txt.indexOf('whatsapp') !== -1 || txt.indexOf('email') !== -1 || txt.indexOf('telegram') !== -1);
+              var tooBroad = txt.indexOf('transactions') !== -1 || txt.indexOf('profile') !== -1 || txt.indexOf('available balance') !== -1 || txt.indexOf('account security') !== -1;
+              if(looksLikeSupport && !tooBroad){
+                $found = $el;
+                return false;
+              }
+            });
+            return !$found.length;
+          });
+          return $found;
+        }
+
+        function placeSupportCard(){
+          var $content = findDashboardContent();
+          if(!$content.length){
+            return;
+          }
+
+          var level = currentEffectiveLevel();
+          var $newCard = $content.find('.liog-dashboard-support-panel').first();
+          var $legacyBlock = findSafeLegacyBlock($content);
+
+          if(level === 'gold'){
+            if($newCard.length){
+              $newCard.removeClass('is-ready').hide();
+            }
+            if($legacyBlock.length){
+              $legacyBlock.addClass('liog-dashboard-support-panel--hidden').hide();
+            }
+            return;
+          }
+
+          if(!$newCard.length){
+            if($legacyBlock.length){
+              $legacyBlock.removeClass('liog-dashboard-support-panel--hidden').show();
+            }
+            return;
+          }
+
+          var placed = false;
+          if($legacyBlock.length){
+            $newCard.insertAfter($legacyBlock);
+            $legacyBlock.addClass('liog-dashboard-support-panel--hidden').hide();
+            placed = true;
+          }
+
+          if(!placed){
+            var $transactionsHeading = $content.find('h1,h2,h3,h4,h5,h6').filter(function(){
+              return $.trim($(this).text()).toLowerCase() === 'transactions';
+            }).first();
+            if($transactionsHeading.length){
+              var $anchor = $transactionsHeading.closest('div');
+              while($anchor.length && !$anchor.parent().is($content)){
+                var txt = $.trim($anchor.text()).toLowerCase();
+                if(txt.indexOf('profile') !== -1 || txt.indexOf('available balance') !== -1 || txt.indexOf('account security') !== -1){
+                  break;
+                }
+                $anchor = $anchor.parent();
+              }
+              if($anchor.length && !$anchor.is($content)){
+                $newCard.insertAfter($anchor);
+                placed = true;
+              }
+            }
+          }
+
+          if(!placed){
+            $content.append($newCard);
+          }
+
+          $newCard.show().addClass('is-ready');
+        }
+
+        placeSupportCard();
+        setTimeout(function(){ placeSupportCard(); }, 180);
+      })();
+  });
+})(jQuery);
+// Liogames Game Username Checker
+(function($){
+  $(function(){
+    var $page = $('#liog-username-checker');
+    if(!$page.length){ return; }
+
+    var apiUrl = $page.data('apiUrl') || ((window.LiogamesPublic && window.LiogamesPublic.restUrl) ? window.LiogamesPublic.restUrl.replace(/\/$/, '') + '/username-check-self' : '/wp-json/liogames/v1/username-check-self');
+    var nonce = (window.LiogamesPublic && window.LiogamesPublic.nonce) ? window.LiogamesPublic.nonce : '';
+
+    function esc(str){ return $('<div>').text(String(str === null || typeof str === 'undefined' ? '' : str)).html(); }
+
+    function syncFields(){
+      var $opt = $('#liog-uc-game option:selected');
+      var needsServer = parseInt($opt.attr('data-server') || '0', 10) === 1;
+      var idLabel = String($opt.attr('data-id-label') || 'Game User ID');
+      var serverLabel = String($opt.attr('data-server-label') || 'Server ID');
+      var serverPlaceholder = String($opt.attr('data-server-placeholder') || 'Enter server id');
+      var serverType = String($opt.attr('data-server-type') || 'text');
+      var fixedServer = String($opt.attr('data-fixed-server') || '');
+      var rawOptions = String($opt.attr('data-server-options') || '{}');
+      var options = {};
+      try { options = JSON.parse(rawOptions); } catch(e) { options = {}; }
+
+      $('#liog-uc-user-label').text(idLabel);
+      $('#liog-uc-server-label').text(serverLabel || 'Server ID');
+
+      var isFixed = needsServer && serverType === 'fixed' && fixedServer !== '';
+      $('#liog-uc-server-wrap').toggle(needsServer && !isFixed);
+
+      var $input = $('#liog-uc-server-id');
+      var $select = $('#liog-uc-server-select');
+      $select.empty();
+
+      if(serverType === 'select' && needsServer && !isFixed){
+        Object.keys(options).forEach(function(value){
+          var label = String(options[value] || value);
+          $('<option>').val(value).text(label + ' (' + value + ')').appendTo($select);
+        });
+        $input.hide().prop('disabled', true).prop('required', false);
+        $select.show().prop('disabled', false).prop('required', true);
+      } else {
+        $input.show().prop('disabled', !needsServer || isFixed).prop('required', needsServer && !isFixed).attr('placeholder', serverPlaceholder);
+        $select.hide().prop('disabled', true).prop('required', false);
+      }
+
+      if(isFixed){
+        $input.val(fixedServer);
+      } else if(!needsServer){
+        $input.val('');
+      }
+    }
+
+    function renderResult(ok, data, message){
+      var cls = ok ? 'is-success' : 'is-error';
+      var html = '<div class="liog-uc-result-card '+cls+'">';
+      html += '<div class="liog-uc-result-head"><strong>' + (ok ? 'Username Found' : 'Check Failed') + '</strong><span>' + esc(message || '') + '</span></div>';
+      if(ok && data){
+        html += '<div class="liog-uc-result-grid">';
+        html += '<div><span>Game</span><strong>'+esc(data.game_name || data.game_label || data.game_id || data.game || '-')+'</strong></div>';
+        if(data.tracking_id){ html += '<div><span>Tracking ID</span><strong>'+esc(data.tracking_id)+'</strong></div>'; }
+        html += '<div><span>User ID</span><strong>'+esc(data.user_id || '-')+'</strong></div>';
+        if(data.server_id){ html += '<div><span>Server ID</span><strong>'+esc(data.server_id)+'</strong></div>'; }
+        html += '<div><span>Username</span><strong>'+esc(data.username || '-')+'</strong></div>';
+        if(data.region){ html += '<div><span>Region</span><strong>'+esc(data.region)+'</strong></div>'; }
+        if(typeof data.is_ban !== 'undefined' && data.is_ban !== null){ html += '<div><span>Ban Status</span><strong>'+(data.is_ban ? 'Banned' : 'Not banned')+'</strong></div>'; }
+        if(data.response_ms){ html += '<div><span>Response</span><strong>'+esc(data.response_ms)+' ms'+(data.cached ? ' (cached)' : '')+'</strong></div>'; }
+        html += '</div>';
+      }
+      html += '</div>';
+      $('#liog-uc-result').html(html).show();
+    }
+
+    $('#liog-uc-game').on('change', syncFields);
+    syncFields();
+
+    $('#liog-uc-form').on('submit', function(e){
+      e.preventDefault();
+      var $btn = $('.liog-uc-submit');
+      var $selectedGame = $('#liog-uc-game option:selected');
+      var fixedServer = String($selectedGame.attr('data-fixed-server') || '');
+      var serverVal = fixedServer !== '' ? fixedServer : ($('#liog-uc-server-select').is(':visible') ? $('#liog-uc-server-select').val() : $('#liog-uc-server-id').val());
+      var payload = {
+        game: $('#liog-uc-game').val(),
+        user_id: $('#liog-uc-user-id').val(),
+        server_id: serverVal
+      };
+      $btn.prop('disabled', true).text('Checking...');
+      $('#liog-uc-result').hide().empty();
+
+      $.ajax({
+        url: apiUrl,
+        method: 'POST',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        beforeSend: function(xhr){ if(nonce){ xhr.setRequestHeader('X-WP-Nonce', nonce); } },
+        success: function(res){
+          if(res && res.ok){ renderResult(true, (res.data && Object.keys(res.data).length ? res.data : res), res.message || 'Username found.'); }
+          else { renderResult(false, (res && res.data && Object.keys(res.data).length ? res.data : (res || {})), (res && res.message) ? res.message : 'Unable to check username.'); }
+        },
+        error: function(xhr){
+          var msg = 'Unable to check username. Please try again.';
+          var data = {};
+          try {
+            if(xhr.responseJSON){
+              msg = xhr.responseJSON.message || msg;
+              data = (xhr.responseJSON.data && Object.keys(xhr.responseJSON.data).length) ? xhr.responseJSON.data : xhr.responseJSON;
+            }
+          } catch(ex){}
+          renderResult(false, data, msg);
+        },
+        complete: function(){ $btn.prop('disabled', false).text('Check Username'); }
+      });
+    });
+  });
+})(jQuery);
+
+
+// V27 leaderboard tabs: switch panels client-side without page reload.
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.js-liog-leaderboard').forEach(function(wrap){
+    var tabs = wrap.querySelectorAll('.liog-lb-tab[data-period]');
+    var panels = wrap.querySelectorAll('.liog-leaderboard-panel[data-period-panel]');
+    var label = wrap.querySelector('.js-liog-leaderboard-filter-label');
+    if(!tabs.length || !panels.length){ return; }
+    function activate(period){
+      tabs.forEach(function(tab){
+        var active = tab.getAttribute('data-period') === period;
+        tab.classList.toggle('is-active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      panels.forEach(function(panel){
+        panel.classList.toggle('is-active', panel.getAttribute('data-period-panel') === period);
+      });
+      if(label){ label.textContent = period.toUpperCase(); }
+    }
+    tabs.forEach(function(tab){
+      tab.addEventListener('click', function(e){
+        e.preventDefault();
+        activate(tab.getAttribute('data-period'));
+      });
+    });
+    activate(wrap.getAttribute('data-default-period') || 'daily');
+  });
+});
+
+
+// V38: copy 2FA manual setup code.
+document.addEventListener('click', function(e){
+  var btn = e.target && e.target.closest ? e.target.closest('.liog-copy-code') : null;
+  if(!btn){ return; }
+  e.preventDefault();
+  var text = btn.getAttribute('data-copy') || '';
+  if(!text){ return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){
+      btn.textContent = 'Copied';
+      setTimeout(function(){ btn.textContent = 'Copy Setup Code'; }, 1500);
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
+    btn.textContent = 'Copied';
+    setTimeout(function(){ btn.textContent = 'Copy Setup Code'; }, 1500);
+  }
+});
+
+
+// V40: settings authenticator setup toggle.
+document.addEventListener('click', function(e){
+  var btn = e.target && e.target.closest ? e.target.closest('.liog-show-auth-setup') : null;
+  if(!btn){ return; }
+  e.preventDefault();
+  var page = btn.closest('.liog-settings-page');
+  if(!page){ return; }
+  var setup = page.querySelector('.liog-2fa-setup');
+  var qrForm = page.querySelector('.liog-new-qr-form');
+  if(setup){ setup.style.display = 'grid'; }
+  if(qrForm){ qrForm.style.display = 'block'; }
+  btn.style.display = 'none';
+});
+
+// Core 3.6.18: modern developer credential/IP controls.
+document.addEventListener('click', function(e){
+  var copyBtn = e.target && e.target.closest ? e.target.closest('[data-liog-copy]') : null;
+  if(copyBtn){
+    e.preventDefault();
+    var selector = copyBtn.getAttribute('data-liog-copy') || '';
+    var target = selector ? document.querySelector(selector) : null;
+    if(!target){ return; }
+    var text = typeof target.value !== 'undefined' ? target.value : target.textContent;
+    var done = function(){ var old=copyBtn.textContent; copyBtn.textContent='Copied'; setTimeout(function(){copyBtn.textContent=old;},1200); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(String(text||'')).then(done).catch(function(){}); }
+    else { var ta=document.createElement('textarea'); ta.value=String(text||''); document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');done();}catch(err){} document.body.removeChild(ta); }
+    return;
+  }
+  var revealBtn = e.target && e.target.closest ? e.target.closest('[data-liog-reveal]') : null;
+  if(revealBtn){
+    e.preventDefault();
+    var sel = revealBtn.getAttribute('data-liog-reveal') || '';
+    var input = sel ? document.querySelector(sel) : null;
+    if(!input){ return; }
+    var reveal = input.type === 'password';
+    input.type = reveal ? 'text' : 'password';
+    revealBtn.textContent = reveal ? 'Hide' : 'Reveal';
+    return;
+  }
+  var confirmBtn = e.target && e.target.closest ? e.target.closest('[data-liog-confirm]') : null;
+  if(confirmBtn){
+    var msg = confirmBtn.getAttribute('data-liog-confirm') || 'Are you sure?';
+    if(!window.confirm(msg)){ e.preventDefault(); e.stopPropagation(); }
+  }
+});
+
+
+/* Core 3.6.26 — authenticated browser time-zone auto-sync.
+ * Runs only when the seller has not explicitly chosen a manual time zone.
+ * One lightweight REST call is made only when the detected zone needs syncing.
+ */
+(function(){
+  'use strict';
+  var cfg=window.LiogamesPublic||{};
+  if(!cfg.loggedIn||!cfg.restUrl||!cfg.nonce||!cfg.timezone||!cfg.timezone.autoSync){return;}
+  var zone='';
+  try{zone=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}
+  if(!zone){return;}
+  if(cfg.timezone.source==='browser'&&cfg.timezone.current===zone){return;}
+  var syncKey='liog_tz_synced_'+zone;
+  try{if(sessionStorage.getItem(syncKey)==='1'){return;}sessionStorage.setItem(syncKey,'1');}catch(e){}
+  var base=String(cfg.restUrl).replace(/\/$/,'');
+  fetch(base+'/account/timezone',{
+    method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json','X-WP-Nonce':cfg.nonce},
+    body:JSON.stringify({timezone:zone})
+  }).then(function(r){return r.ok?r.json():Promise.reject(new Error('timezone sync failed'));})
+    .then(function(data){
+      if(data&&data.ok&&data.changed){
+        try{
+          var reloadKey='liog_tz_reloaded_'+zone;
+          if(sessionStorage.getItem(reloadKey)!=='1'){
+            sessionStorage.setItem(reloadKey,'1');
+            window.location.reload();
+          }
+        }catch(e){window.location.reload();}
+      }
+    }).catch(function(){});
+})();
+
+/* Core 3.6.20 — seller timezone selector */
+(function(){
+  function selectedZone(){var el=document.getElementById('liog_timezone');return el?String(el.value||''):'';}
+  function updatePreview(zone){
+    var out=document.querySelector('[data-liog-timezone-preview]');var status=document.querySelector('[data-liog-timezone-status]');if(!zone){return;}
+    if(status){status.innerHTML='Selected: <strong></strong>';var b=status.querySelector('strong');if(b){b.textContent=zone;}}
+    if(!out||!window.Intl||!Intl.DateTimeFormat){return;}
+    try{out.textContent=new Intl.DateTimeFormat(undefined,{timeZone:zone,year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',timeZoneName:'short'}).format(new Date())+' · '+zone;}catch(e){}
+  }
+  document.addEventListener('change',function(e){if(e.target&&e.target.id==='liog_timezone'){updatePreview(selectedZone());}});
+  document.addEventListener('click',function(e){var btn=e.target&&e.target.closest?e.target.closest('.liog-detect-timezone'):null;if(!btn){return;}e.preventDefault();var select=document.getElementById('liog_timezone');if(!select){return;}var zone='';try{zone=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(err){}if(!zone){var st=document.querySelector('[data-liog-timezone-status]');if(st){st.textContent='Browser time zone could not be detected. Choose it manually.';}return;}var option=Array.prototype.find.call(select.options,function(o){return o.value===zone;});if(option){select.value=zone;updatePreview(zone);}else{var st2=document.querySelector('[data-liog-timezone-status]');if(st2){st2.textContent='Detected '+zone+'. Choose the closest available time zone manually.';}}});
+  if(document.getElementById('liog_timezone')){updatePreview(selectedZone());}
+})();

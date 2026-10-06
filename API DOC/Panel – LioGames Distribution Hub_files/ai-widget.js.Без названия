@@ -1,0 +1,361 @@
+(function(){
+  'use strict';
+  const cfg = window.LioGamesAI || {};
+
+  function boot(){
+    let roots = Array.prototype.slice.call(document.querySelectorAll('[data-lgai-root]'));
+    if (!roots.length) return;
+
+    // Move floating roots directly under <body>. This avoids theme/footer wrappers,
+    // transforms and overflow containers turning position:fixed into a footer-bound element.
+    async function syncBrowserTimezone(){
+      if(!cfg.loggedIn||!cfg.syncTimezoneUrl||!cfg.nonce)return;
+      let already=false;try{already=sessionStorage.getItem('lgai_timezone_synced')==='1';}catch(e){}if(already)return;
+      let zone='';try{zone=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}if(!zone)return;
+      try{
+        const res=await fetch(cfg.syncTimezoneUrl,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':cfg.nonce},body:JSON.stringify({timezone:zone})});
+        if(res.ok){try{sessionStorage.setItem('lgai_timezone_synced','1');}catch(e){}}
+      }catch(e){}
+    }
+    syncBrowserTimezone();
+
+    roots.forEach(function(root){
+      if (root.dataset.lgaiInline !== '1' && root.parentNode !== document.body) {
+        document.body.appendChild(root);
+      }
+    });
+
+    const supportPage = (window.location.pathname || '').toLowerCase().includes('/support');
+    const suppressedWidgets = new Map();
+    function suppressCompetingChatWidgets(){
+      const selectors=[
+        'iframe[src*="bitassist" i]','iframe[src*="bit-assist" i]',
+        '[id*="bitassist" i]','[class*="bitassist" i]','[id*="bit-assist" i]','[class*="bit-assist" i]',
+        '.joinchat','#qlwapp','.ht-ctc-chat','.ht_ctc_chat_greetings_box','.wa__btn_popup'
+      ];
+      document.querySelectorAll(selectors.join(',')).forEach(function(el){
+        if(el.closest && el.closest('[data-lgai-root]')) return;
+        if(!suppressedWidgets.has(el)){
+          suppressedWidgets.set(el,{opacity:el.style.opacity,pointerEvents:el.style.pointerEvents,visibility:el.style.visibility,transform:el.style.transform});
+        }
+        el.style.setProperty('opacity','0','important');
+        el.style.setProperty('pointer-events','none','important');
+        el.style.setProperty('visibility','hidden','important');
+      });
+    }
+    function restoreCompetingChatWidgets(){
+      suppressedWidgets.forEach(function(old,el){
+        if(!el || !el.style) return;
+        el.style.opacity=old.opacity||''; el.style.pointerEvents=old.pointerEvents||''; el.style.visibility=old.visibility||''; el.style.transform=old.transform||'';
+      });
+      suppressedWidgets.clear();
+      if (supportPage) { suppressCompetingChatWidgets(); }
+    }
+    if (supportPage) {
+      document.documentElement.classList.add('lgai-support-page');
+      setTimeout(suppressCompetingChatWidgets, 80);
+      setTimeout(suppressCompetingChatWidgets, 800);
+    }
+
+    function escapeHtml(str){
+      return String(str || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
+    }
+    function formatText(str){
+      let s = escapeHtml(str).replace(/\r\n/g,'\n');
+      s = s.replace(/`([^`]+)`/g,'<code>$1</code>');
+      s = s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+      s = s.replace(/^#{1,4}\s+(.+)$/gm,'<strong class="lgai-md-heading">$1</strong>');
+      s = s.replace(/^\s*[-*]\s+(.+)$/gm,'• $1');
+      s = s.replace(/(https?:\/\/[^\s<]+)/g, function(url){
+        const clean = url.replace(/[.,;:)]+$/,'');
+        return '<a href="'+clean+'" target="_blank" rel="noopener noreferrer">'+clean+'</a>' + url.slice(clean.length);
+      });
+      s = s.replace(/(^|\s)(support@liogames\.com|partners@liogames\.com)(?=$|\s|[.,;])/gi,function(m,prefix,email){
+        return prefix+'<a href="mailto:'+email.toLowerCase()+'">'+email+'</a>';
+      });
+      s = s.replace(/(^|\s)(@TeamLioGames)(?=$|\s|[.,;])/gi,function(m,prefix,user){
+        return prefix+'<a href="https://t.me/TeamLioGames" target="_blank" rel="noopener noreferrer">'+user+'</a>';
+      });
+      return s.replace(/\n/g,'<br>');
+    }
+    function loadState(){
+      try { return JSON.parse(localStorage.getItem(cfg.storageKey || 'liogames_ai') || 'null') || {messages:[]}; }
+      catch(e){ return {messages:[]}; }
+    }
+    function saveState(state){
+      try { localStorage.setItem(cfg.storageKey || 'liogames_ai', JSON.stringify({messages:state.messages.slice(-12)})); } catch(e){}
+    }
+
+    roots.forEach(function(root){
+      const panel = root.querySelector('[data-lgai-panel]');
+      const open = root.querySelector('[data-lgai-open]');
+      const close = root.querySelector('[data-lgai-close]');
+      const newBtn = root.querySelector('[data-lgai-new]');
+      const form = root.querySelector('[data-lgai-form]');
+      const input = root.querySelector('[data-lgai-input]');
+      const send = root.querySelector('[data-lgai-send]');
+      const messages = root.querySelector('[data-lgai-messages]');
+      const suggestions = root.querySelector('[data-lgai-suggestions]');
+      const nudge = root.querySelector('[data-lgai-nudge]');
+      const nudgeClose = root.querySelector('[data-lgai-nudge-close]');
+      if(!panel || !form || !input || !send || !messages || !suggestions) return;
+      const state = loadState();
+      let busy = false;
+      let closeTimer = null;
+
+      function add(role, content, save){
+        const wrap = document.createElement('div');
+        wrap.className = 'lgai-msg lgai-msg--'+role;
+        const bubble = document.createElement('div');
+        bubble.className = 'lgai-msg__bubble';
+        bubble.innerHTML = formatText(content);
+        wrap.appendChild(bubble);
+        messages.appendChild(wrap);
+        messages.scrollTop = messages.scrollHeight;
+        if (save !== false){
+          state.messages.push({role: role === 'assistant' ? 'assistant' : 'user', content:String(content)});
+          state.messages = state.messages.slice(-12);
+          saveState(state);
+        }
+        return wrap;
+      }
+
+      function money(value){
+        const n=Number(value);
+        if(!Number.isFinite(n)) return '—';
+        return '$'+n.toFixed(n>=100?2:4).replace(/0+$/,'').replace(/\.$/,'');
+      }
+      function actionCard(title, subtitle){
+        const card=document.createElement('div'); card.className='lgai-action-card';
+        const head=document.createElement('div'); head.className='lgai-action-card__head';
+        const h=document.createElement('strong'); h.textContent=title||'LioGames action'; head.appendChild(h);
+        if(subtitle){const p=document.createElement('span');p.textContent=subtitle;head.appendChild(p);}
+        card.appendChild(head); messages.appendChild(card); messages.scrollTop=messages.scrollHeight; return card;
+      }
+      function row(card,label,value,mono){
+        if(value===null||typeof value==='undefined'||String(value)==='') return null;
+        const el=document.createElement('div');el.className='lgai-action-row';
+        const l=document.createElement('span');l.textContent=label;
+        const v=document.createElement(mono?'code':'strong');v.textContent=String(value);
+        el.appendChild(l);el.appendChild(v);card.appendChild(el);return v;
+      }
+      function button(label,cls){const b=document.createElement('button');b.type='button';b.className='lgai-action-btn '+(cls||'');b.textContent=label;return b;}
+      async function copyText(value,btn){
+        try{await navigator.clipboard.writeText(String(value||''));const old=btn.textContent;btn.textContent='Copied';setTimeout(()=>btn.textContent=old,1200);}catch(e){}
+      }
+      function countdown(el,expiresTs,serverTs,onExpire){
+        const exp=Number(expiresTs||0)*1000;if(!exp){el.textContent='—';return function(){};}
+        const offset=Number(serverTs||0)>0?(Number(serverTs)*1000-Date.now()):0;
+        let stopped=false,expiredCalled=false;
+        function tick(){
+          if(stopped)return;
+          const left=Math.max(0,exp-(Date.now()+offset));const total=Math.floor(left/1000);const m=Math.floor(total/60);const sec=total%60;
+          el.textContent=left>0?String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'):'Expired';
+          if(left<=0){stopped=true;if(!expiredCalled&&typeof onExpire==='function'){expiredCalled=true;try{onExpire();}catch(e){}}}
+        }
+        tick();const id=setInterval(function(){tick();if(stopped)clearInterval(id);},1000);return function(){stopped=true;clearInterval(id);};
+      }
+      function renderOrderConfirmation(a){
+        const card=actionCard('Confirm purchase','Wallet will not be deducted until you confirm.');
+        row(card,'Product',a.product||''); row(card,'Variation',a.variation||'');
+        if(Number(a.qty||1)>1) row(card,'Quantity',a.qty);
+        row(card,'Player / User ID',a.player_id||'',true); row(card,'Server / Zone',a.server_id||'',true);
+        row(card,'Order total',money(a.total));
+        if(a.wallet_balance!==null&&typeof a.wallet_balance!=='undefined') row(card,'Wallet balance',money(a.wallet_balance));
+        if(a.balance_after!==null&&typeof a.balance_after!=='undefined') row(card,'Balance after order',money(a.balance_after));
+        const timerWrap=document.createElement('div');timerWrap.className='lgai-action-timer';timerWrap.innerHTML='<span>Confirmation expires in</span><strong></strong>';card.appendChild(timerWrap);
+        let confirmExpired=false;
+        const status=document.createElement('div');status.className='lgai-action-status';card.appendChild(status);
+        const actions=document.createElement('div');actions.className='lgai-action-buttons';
+        const confirm=button('Confirm Order','is-primary');const cancel=button('Cancel','is-ghost');actions.append(confirm,cancel);card.appendChild(actions);
+        const stop=countdown(timerWrap.querySelector('strong'),a.expires_ts,a.server_ts,function(){confirmExpired=true;confirm.disabled=true;cancel.disabled=true;status.textContent='Confirmation expired. No wallet amount was deducted. Ask AI to prepare a fresh order.';card.classList.add('is-error');});
+        cancel.addEventListener('click',function(){stop();confirm.disabled=true;cancel.disabled=true;status.textContent='Order cancelled. No wallet amount was deducted.';card.classList.add('is-cancelled');});
+        confirm.addEventListener('click',async function(){
+          if(confirmExpired||!cfg.confirmOrderUrl||!cfg.nonce)return;
+          confirm.disabled=true;cancel.disabled=true;status.textContent='Confirming live price and wallet balance…';card.classList.add('is-working');
+          try{
+            const res=await fetch(cfg.confirmOrderUrl,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':cfg.nonce},body:JSON.stringify({token:String(a.token||'')})});
+            const data=await res.json().catch(()=>({})); stop();card.classList.remove('is-working');
+            if(!res.ok||!data.ok){status.textContent=data.message||'Order could not be confirmed. No new order was created.';card.classList.add('is-error');return;}
+            status.textContent=(data.order_id?'Order #'+data.order_id+' created. ':'')+(data.message||'Order created successfully.');card.classList.add('is-success');
+            add('assistant',(data.order_id?'Order #'+data.order_id+' has been created. ':'')+(data.status?'Status: '+data.status+'. ': '')+'The confirmed order is now being processed.',true);
+          }catch(e){card.classList.remove('is-working');if(!confirmExpired){confirm.disabled=false;cancel.disabled=false;}status.textContent=confirmExpired?'Confirmation expired. No wallet amount was deducted. Ask AI to prepare a fresh order.':'Could not confirm the order right now. Nothing was deducted by this request.';card.classList.add('is-error');}
+        });
+      }
+      function renderDepositInvoice(a){
+        const card=actionCard('Wallet top-up invoice','#'+String(a.invoice_no||a.id||'')+' · '+String(a.network_label||a.network_key||'USDT'));
+        const amount=String(a.pay_amount_text||a.pay_amount||'');
+        row(card,'Send exactly',amount+(amount?' USDT':''));
+        row(card,'Network',a.network_label||a.network_key||'');
+        const addr=row(card,'USDT address',a.address||'',true); if(addr) addr.classList.add('lgai-action-address');
+        if(a.memo) row(card,'Memo / Tag',a.memo,true);
+        row(card,'Expires',a.expires_local||''); row(card,'Time zone',a.timezone||'');
+        if(a.qr_url){const qr=document.createElement('img');qr.className='lgai-action-qr';qr.src=String(a.qr_url);qr.alt='USDT payment QR';qr.loading='lazy';card.appendChild(qr);}
+        const timerWrap=document.createElement('div');timerWrap.className='lgai-action-timer is-deposit';timerWrap.innerHTML='<span>Payment time remaining</span><strong></strong>';card.appendChild(timerWrap);
+        let invoiceExpired=false;
+        const status=document.createElement('div');status.className='lgai-action-status';status.textContent='Waiting for payment';card.appendChild(status);
+        const stop=countdown(timerWrap.querySelector('strong'),a.expires_ts,a.server_ts,function(){invoiceExpired=true;status.textContent='Invoice timer expired · checking final payment status…';});
+        const actions=document.createElement('div');actions.className='lgai-action-buttons';
+        const copyAmount=button('Copy amount','is-primary');const copyAddress=button('Copy address','is-ghost');actions.append(copyAmount,copyAddress);
+        if(cfg.links&&cfg.links.wallet){const wallet=document.createElement('a');wallet.className='lgai-action-link';wallet.href=cfg.links.wallet;wallet.textContent=a.auto_verify?'Open Wallet':'Open Wallet / Submit proof';actions.appendChild(wallet);}
+        card.appendChild(actions);copyAmount.addEventListener('click',()=>copyText(amount,copyAmount));copyAddress.addEventListener('click',()=>copyText(a.address||'',copyAddress));
+        const depId=parseInt(a.id||0,10);let polling=true;
+        const pollClockOffset=Number(a.server_ts||0)>0?(Number(a.server_ts)*1000-Date.now()):0;
+        const pollStopAt=(Number(a.expires_ts||0)>0?Number(a.expires_ts):Math.floor((Date.now()+pollClockOffset)/1000)+3600)+300;
+        async function poll(){
+          if(!polling||!depId||!cfg.depositStatusUrl||!cfg.nonce)return;
+          if(Math.floor((Date.now()+pollClockOffset)/1000)>pollStopAt){polling=false;stop();if(invoiceExpired){status.textContent='Invoice expired. Open Wallet to review any late payment.';card.classList.add('is-error');}return;}
+          try{
+            const res=await fetch(cfg.depositStatusUrl,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':cfg.nonce},body:JSON.stringify({deposit_id:depId})});
+            const data=await res.json().catch(()=>({})); if(!res.ok||!data.ok)return;
+            const d=data.deposit||{};const st=String(d.status||'waiting').toLowerCase();
+            if(st==='approved'){polling=false;stop();status.textContent='Payment confirmed · Wallet credited';card.classList.add('is-success');add('assistant','Payment confirmed for invoice #'+String(a.invoice_no||depId)+'. Your wallet has been credited by the existing LioGames deposit system.',true);}
+            else if(['rejected','expired','failed','cancelled'].includes(st)){polling=false;stop();status.textContent=st==='expired'?'Invoice expired':'Payment status: '+st;card.classList.add('is-error');}
+            else status.textContent=data.message||'Waiting for payment';
+          }catch(e){}
+          if(polling)setTimeout(poll,12000);
+        }
+        if(depId)setTimeout(poll,5000);
+      }
+      function renderTicket(a){
+        const card=actionCard('Support ticket created',a.ticket_no?'#'+a.ticket_no:'');row(card,'Status',a.status||'open');
+        const status=document.createElement('div');status.className='lgai-action-status';status.textContent='AI support processing is enabled for this ticket.';card.appendChild(status);
+        if(cfg.links&&cfg.links.support){const actions=document.createElement('div');actions.className='lgai-action-buttons';const link=document.createElement('a');link.href=cfg.links.support;link.className='lgai-action-link';link.textContent='Open Support Center';actions.appendChild(link);card.appendChild(actions);}
+      }
+      function renderActions(list){
+        (Array.isArray(list)?list:[]).forEach(function(a){if(!a||!a.type)return;if(a.type==='order_confirmation')renderOrderConfirmation(a);else if(a.type==='deposit_invoice')renderDepositInvoice(a);else if(a.type==='ticket_created')renderTicket(a);});
+        messages.scrollTop=messages.scrollHeight;
+      }
+      function welcome(){
+        if (!state.messages.length){ add('assistant', cfg.welcome || 'Hi! I can help with LioGames.', false); }
+      }
+      function renderHistory(){
+        messages.innerHTML = '';
+        if (!state.messages.length){ welcome(); return; }
+        state.messages.forEach(m => add(m.role === 'assistant' ? 'assistant' : 'user', m.content, false));
+      }
+      function renderSuggestions(){
+        suggestions.innerHTML = '';
+        const path=(window.location.pathname||'/').toLowerCase();
+        let list=(cfg.suggestions||[]).slice();
+        if(path.includes('developer')||path.includes('api')) list=['Help me integrate the API','Explain API authentication','How do I create an order?','Explain webhooks'];
+        else if(path.includes('username')) list=['Which fields does this game need?','Show supported username games','How do I check a username?','Explain Username API'];
+        else if(path.includes('catalog')||path.includes('product')) list=['Find a product','Show required order fields','Show my reseller pricing','Is this product available?'];
+        else if(path.includes('verification')) list=cfg.loggedIn?['Check my KYC status','Run my KYC review','What documents do I need?','Open verification']:['What documents do I need?','Why is verification required?','Where do I submit documents?','How does verification work?'];
+        else if(path.includes('support')) list=cfg.loggedIn?['Raise a support ticket','Check my recent orders','Help with an API error','How do support tickets work?']:['How do I contact support?','What do I need for verification?','Help with API integration','Find a product'];
+        else if(path.includes('order')&&cfg.loggedIn) list=['Check my recent orders','Check an order status','Why is my order processing?','How do I contact support?'];
+        list.slice(0,4).forEach(function(label){
+          const b = document.createElement('button');
+          b.type = 'button'; b.textContent = label;
+          b.addEventListener('click', ()=>{ input.value = label; resize(); input.focus(); });
+          suggestions.appendChild(b);
+        });
+      }
+      function setBusy(v){ busy = v; send.disabled = v; input.disabled = v; root.classList.toggle('is-busy', v); }
+      function resize(){ input.style.height='auto'; input.style.height=Math.min(120, input.scrollHeight)+'px'; }
+      function typing(){
+        const row=document.createElement('div'); row.className='lgai-msg lgai-msg--assistant'; row.dataset.typing='1';
+        row.innerHTML='<div class="lgai-msg__bubble lgai-typing"><i></i><i></i><i></i></div>';
+        messages.appendChild(row); messages.scrollTop=messages.scrollHeight; return row;
+      }
+      function openPanel(prompt){
+        if(closeTimer){clearTimeout(closeTimer);closeTimer=null;}
+        panel.hidden=false;
+        document.body.classList.add('lgai-chat-open');
+        suppressCompetingChatWidgets();
+        requestAnimationFrame(function(){
+          root.classList.add('is-open');
+          if(open) open.setAttribute('aria-expanded','true');
+          if(typeof prompt==='string' && prompt.trim()){ input.value=prompt.trim().slice(0,2500); resize(); }
+          setTimeout(function(){try{input.focus({preventScroll:true});}catch(e){input.focus();}},80);
+        });
+        if(nudge){nudge.hidden=true;}
+        try{sessionStorage.setItem('lgai_opened','1');}catch(e){}
+      }
+      function closePanel(){
+        root.classList.remove('is-open');
+        document.body.classList.remove('lgai-chat-open');
+        restoreCompetingChatWidgets();
+        if(open) open.setAttribute('aria-expanded','false');
+        closeTimer=setTimeout(function(){ if(!root.classList.contains('is-open')) panel.hidden=true; },220);
+      }
+
+      async function submit(text){
+        if (busy || !text.trim()) return;
+        const clean=text.trim().slice(0,2500);
+        const previous=state.messages.slice(-12);
+        add('user', clean, true);
+        input.value=''; resize(); setBusy(true);
+        const t=typing();
+        try{
+          const headers={'Content-Type':'application/json'};
+          if (cfg.nonce) headers['X-WP-Nonce']=cfg.nonce;
+          const res=await fetch(cfg.restUrl,{method:'POST',credentials:'same-origin',headers:headers,body:JSON.stringify({message:clean,history:previous,page:{title:(document.title||'').slice(0,160),path:(window.location.pathname||'/').slice(0,240)}})});
+          const data=await res.json().catch(()=>({}));
+          t.remove();
+          if (!res.ok || !data.ok){
+            add('assistant', data.message || 'I could not complete that request right now. Please try again.', true);
+          } else {
+            add('assistant', data.reply || 'Done.', true);
+            renderActions(data.actions || []);
+          }
+        }catch(e){
+          t.remove(); add('assistant','The assistant could not connect right now. Please try again shortly.',true);
+        }finally{ setBusy(false); input.focus(); }
+      }
+
+      if (open) open.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();openPanel();});
+      if (close) close.addEventListener('click',function(e){e.preventDefault();closePanel();});
+      if (newBtn) newBtn.addEventListener('click',function(){ state.messages=[]; saveState(state); renderHistory(); input.focus(); });
+      if (nudgeClose) nudgeClose.addEventListener('click',function(e){e.preventDefault();nudge.hidden=true;try{localStorage.setItem('lgai_nudge_dismissed','1');}catch(err){}});
+      form.addEventListener('submit',e=>{ e.preventDefault(); submit(input.value); });
+      input.addEventListener('input',resize);
+      input.addEventListener('keydown',e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); submit(input.value); } });
+      document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&root.classList.contains('is-open')) closePanel(); });
+
+      // Any page (Support, account, homepage) can open the same floating assistant.
+      document.addEventListener('click',function(e){
+        const trigger=e.target.closest&&e.target.closest('[data-lgai-open-external]');
+        if(!trigger) return;
+        e.preventDefault();
+        openPanel(trigger.getAttribute('data-lgai-prompt')||'');
+      });
+
+      renderHistory(); renderSuggestions(); resize();
+      requestAnimationFrame(function(){requestAnimationFrame(function(){root.classList.add('lgai-ready');});});
+      if(nudge){
+        let dismissed=false,opened=false;try{dismissed=localStorage.getItem('lgai_nudge_dismissed')==='1';opened=sessionStorage.getItem('lgai_opened')==='1';}catch(e){}
+        if(!dismissed&&!opened){setTimeout(function(){if(!root.classList.contains('is-open')) nudge.hidden=false;},6500);}
+      }
+    });
+
+    // Support page reliability: after a customer creates/replies to a ticket,
+    // request one immediate AI pass. Cron/Action Scheduler remains the fallback.
+    async function assistPendingTickets(){
+      if(!cfg.loggedIn || !cfg.ticketAssistUrl || !cfg.nonce) return;
+      const cards=Array.prototype.slice.call(document.querySelectorAll('[data-lgai-ticket-id][data-lgai-needs-assist="1"]')).slice(0,3);
+      for(const card of cards){
+        const ticketId=parseInt(card.getAttribute('data-lgai-ticket-id')||'0',10);
+        if(!ticketId) continue;
+        const key='lgai_ticket_assist_'+ticketId;
+        let recently=false;
+        try{const ts=parseInt(sessionStorage.getItem(key)||'0',10);recently=ts&&Date.now()-ts<30000;}catch(e){}
+        if(recently) continue;
+        try{sessionStorage.setItem(key,String(Date.now()));}catch(e){}
+        card.classList.add('is-ai-checking');
+        try{
+          const res=await fetch(cfg.ticketAssistUrl,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-WP-Nonce':cfg.nonce},body:JSON.stringify({ticket_id:ticketId})});
+          const data=await res.json().catch(()=>({}));
+          if(res.ok && data && ['answered','in_review'].includes(String(data.status||''))){
+            window.location.reload();
+            return;
+          }
+        }catch(e){}
+        card.classList.remove('is-ai-checking');
+      }
+    }
+    setTimeout(assistPendingTickets,450);
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();

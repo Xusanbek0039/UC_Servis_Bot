@@ -96,6 +96,7 @@ async def init_db():
     await db.products.update_many({"max_price": {"$exists": False}}, {"$set": {"max_price": 0.0}})
     await db.products.update_many({"manual_block": {"$exists": False}}, {"$set": {"manual_block": False}})
     await db.products.update_many({"auto_block_reason": {"$exists": False}}, {"$set": {"auto_block_reason": ""}})
+    await db.products.update_many({"supplier_price_usd": {"$exists": False}}, {"$set": {"supplier_price_usd": 0.0}})
 
     logger.info("MongoDB Atlas initialized successfully.")
 
@@ -231,7 +232,7 @@ async def get_recent_users(limit: int = 8) -> List[Dict[str, Any]]:
 
 async def get_active_products() -> List[Dict[str, Any]]:
     db = get_db()
-    cursor = db.products.find({"is_active": 1, "manual_block": {"$ne": True}, "auto_block_reason": {"$in": ["", None]}, "supplier_price_usd": {"$gt": 0}, "supplier_product_id": {"$exists": True, "$ne": ""}, "supplier_variation_id": {"$exists": True, "$ne": ""}, "price": {"$gt": 0}}).sort([("sort_order", ASCENDING), ("uc_amount", ASCENDING)])
+    cursor = db.products.find({"is_active": 1, "manual_block": {"$ne": True}, "auto_block_reason": {"$in": ["", None]}, "supplier_price_usd": {"$gt": 0}, "supplier_product_id": {"$exists": True, "$ne": ""}, "supplier_variation_id": {"$exists": True, "$ne": ""}, "max_price": {"$gt": 0}, "price": {"$gt": 0}}).sort([("sort_order", ASCENDING), ("uc_amount", ASCENDING)])
     products = []
     async for doc in cursor:
         products.append(clean_doc(doc))
@@ -380,6 +381,11 @@ async def create_order(telegram_id: int, player_id: str, product_id: int, price:
         "updated_at": datetime.now(),
     }
     await db.orders.insert_one(new_order)
+    await db.price_snapshots.update_one(
+        {"order_id": order_id},
+        {"$setOnInsert": {"order_id": order_id, "product_id": int(product_id), "supplier_price_usd": new_order["supplier_price_usd"], "usd_rate": new_order["usd_rate"], "supplier_cost_uzs": new_order["supplier_cost_uzs"], "profit_percent": new_order["profit_percent"], "max_price": new_order["max_price"], "sale_price": new_order["sale_price"], "created_at": new_order["created_at"]}},
+        upsert=True,
+    )
     return order_id
 
 
@@ -703,7 +709,7 @@ async def mark_payment_paid_if_pending(order_id: str, raw_data: str = "") -> boo
     db = get_db()
     result = await db.payments.update_one(
         {"order_id": order_id, "payment_method": "TEZCHECK", "status": "PENDING"},
-        {"$set": {"status": "PAID", "raw_data": raw_data, "paid_at": datetime.now()}},
+        {"$set": {"status": "SUCCESS", "raw_data": raw_data, "paid_at": datetime.now()}},
     )
     return result.modified_count == 1
 
@@ -723,7 +729,7 @@ async def credit_topup_if_pending(order_id: str, raw_data: str = "") -> Optional
                 "payment_method": "TEZCHECK",
                 "status": "PENDING",
             },
-            {"$set": {"status": "PAID", "raw_data": raw_data, "paid_at": datetime.now()}},
+            {"$set": {"status": "SUCCESS", "raw_data": raw_data, "paid_at": datetime.now()}},
             return_document=ReturnDocument.BEFORE,
             session=session,
         )
