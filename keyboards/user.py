@@ -98,7 +98,9 @@ def payment_methods_keyboard(user_balance: float, order_price: float) -> InlineK
     """Payment methods selection with badges."""
     buttons = [
         [InlineKeyboardButton(text=f"{E('lightning', True)} Onlayn to'lov (Avtomatik)", callback_data="pay_method:TEZCHECK")],
-        [InlineKeyboardButton(text=f"{E('card', True)} Karta orqali (Qo'lda to'lov)", callback_data="pay_method:MANUAL_CARD")],
+        [InlineKeyboardButton(text=f"{E('visa', True)} Visa", callback_data="pay_method:VISA"), InlineKeyboardButton(text=f"{E('humo', True)} Humo", callback_data="pay_method:HUMO")],
+        [InlineKeyboardButton(text=f"{E('mastercard', True)} Mastercard", callback_data="pay_method:MASTERCARD"), InlineKeyboardButton(text=f"{E('uzcard', True)} Uzcard", callback_data="pay_method:UZCARD")],
+        [InlineKeyboardButton(text=f"{E('click', True)} Click", callback_data="pay_method:CLICK"), InlineKeyboardButton(text=f"{E('payme', True)} Payme", callback_data="pay_method:PAYME"), InlineKeyboardButton(text=f"{E('paynet', True)} Paynet", callback_data="pay_method:PAYNET")],
     ]
 
     if user_balance >= order_price:

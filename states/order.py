@@ -25,5 +25,6 @@ class AdminSettingsStates(StatesGroup):
     WAITING_CARD_NUMBER = State()
     WAITING_CARD_OWNER = State()
     WAITING_BANK_NAME = State()
+    WAITING_PAYMENT_DETAIL = State()
     WAITING_SUPPORT_USERNAME = State()
     WAITING_PROOF_CHANNEL_URL = State()
