@@ -30,5 +30,6 @@ def product_sellable(product: dict) -> bool:
         and float(product.get("supplier_price_usd", 0) or 0) > 0
         and product.get("supplier_product_id")
         and product.get("supplier_variation_id")
+        and float(product.get("max_price", 0) or 0) > 0
         and float(product.get("price", 0) or 0) > 0
     )
