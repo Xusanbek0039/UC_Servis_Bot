@@ -80,6 +80,7 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     },
     "verified": {
         "env_var": "EMOJI_VERIFIED",
+        "default_id": "5818967120213445821",
         "fallback": "🛡️",
     },
     "clock": {
@@ -130,6 +131,7 @@ EMOJI_CONFIG: Dict[str, Dict[str, str]] = {
     },
     "proof": {
         "env_var": "EMOJI_PROOF",
+        "default_id": "5330237710655306682",
         "fallback": "📢",
     },
     "processing": {

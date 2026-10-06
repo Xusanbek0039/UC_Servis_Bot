@@ -7,7 +7,7 @@ import database as db
 from keyboards.user import main_menu_keyboard
 from utils.helpers import DIVIDER
 from utils.helpers import format_currency
-from emojis import E
+from emojis import E, custom_emoji_id
 
 router = Router()
 
@@ -48,7 +48,7 @@ async def welcome_keyboard(is_admin: bool) -> InlineKeyboardMarkup:
     if channel_url:
         keyboard.inline_keyboard.insert(
             0,
-            [InlineKeyboardButton(text="📢 Isbot kanalimiz", url=channel_url)],
+            [InlineKeyboardButton(text="Isbot kanalimiz", url=channel_url, icon_custom_emoji_id=custom_emoji_id("proof"))],
         )
     return keyboard
 
