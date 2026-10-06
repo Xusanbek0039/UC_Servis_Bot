@@ -293,11 +293,21 @@ async def admin_products_list(call: CallbackQuery, state: FSMContext):
         return
     await state.clear()
     products = await db.get_all_products()
+    rows = []
+    for product in products:
+        manual = bool(product.get("manual_block"))
+        reason = product.get("auto_block_reason") or ""
+        status = "🔴 MANUAL BLOCK" if manual else (f"🔴 {reason}" if reason else ("🟢 ACTIVE" if product.get("is_active") == 1 and product.get("max_price", 0) else "🔴 INACTIVE/SETUP"))
+        rows.append(
+            f"📦 <b>{html.escape(product.get('name', 'UC'))}</b> · Cost {format_currency(product.get('cost_price', 0))} · "
+            f"+{product.get('profit_percent', 0):g}% · MAX {format_currency(product.get('max_price', 0))} · {status}"
+        )
+    product_rows = "\n".join(rows)
     text = (
         f"{DIVIDER}\n"
         f"   {E('uc')} <b>UC PAKETLARI BOSHQARUVI</b>\n"
         f"{DIVIDER}\n\n"
-        f"Paketni tahrirlash uchun ustiga bosing yoki yangi qo'shing 👇"
+        f"{product_rows}\n\nPaketni tahrirlash uchun ustiga bosing yoki yangisini qo'shing 👇"
     )
     await call.message.edit_text(text, reply_markup=admin_products_management_keyboard(products))
     await call.answer()

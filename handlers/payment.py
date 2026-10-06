@@ -227,10 +227,7 @@ async def check_payment_manual(call: CallbackQuery, bot: Bot):
         await call.answer("Bu buyurtma sizga tegishli emas.", show_alert=True)
         return
 
-    if order.get("user_id") != call.from_user.id:
-        await call.answer("Bu buyurtma sizga tegishli emas.", show_alert=True)
         return
-
     if order["status"] in ("PAID", "PROCESSING", "COMPLETED"):
         await call.answer("✅ To'lov tasdiqlangan va UC yetkazilmoqda!", show_alert=True)
         await call.message.edit_text(

@@ -12,7 +12,7 @@ import database as db
 from services.midasbuy import MidasbuyService
 from utils.helpers import is_valid_player_id, format_currency, DIVIDER, SUB_DIVIDER
 from emojis import E
-from services.pricing import product_sellable
+from services.pricing import product_sellable, calculate_price
 
 router = Router()
 
@@ -137,6 +137,16 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         await call.answer("Tanlangan paket topilmadi!", show_alert=True)
         return
 
+    rate = float(await db.get_setting("usd_rate", "0") or 0)
+    quote = calculate_price(product.get("supplier_price_usd", 0), rate, product.get("profit_percent", 0), product.get("max_price", 0))
+    if quote.blocked_reason:
+        await db.set_product_pricing(product_id, auto_block_reason=quote.blocked_reason)
+        await call.answer("Bu paketning narxi hozircha belgilangan limitdan oshdi yoki supplier narxi yo'q.", show_alert=True)
+        await show_products_list(call, state)
+        return
+    await db.set_product_pricing(product_id, cost_price=float(quote.cost_uzs), price=float(quote.sale_price), auto_block_reason="")
+    product = await db.get_product(product_id)
+
     if not await db.global_sales_enabled() or not product_sellable(product) or float(product.get("price", 0)) <= 0:
         await call.answer("Bu paket hozircha sotuvda mavjud emas.", show_alert=True)
         await show_products_list(call, state)
@@ -155,7 +165,7 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         payment_method="PENDING",
         player_name=nickname,
         supplier_price_usd=product.get("supplier_price_usd", 0),
-        usd_rate=float(await db.get_setting("usd_rate", "0") or 0),
+        usd_rate=rate,
         supplier_cost_uzs=product.get("cost_price", 0),
         profit_percent=product.get("profit_percent", 0),
         max_price=product.get("max_price", 0),
