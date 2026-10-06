@@ -20,6 +20,7 @@ from services.proof_channel import ProofChannelService
 from utils.helpers import format_order_summary, format_currency, DIVIDER, SUB_DIVIDER, get_status_badge
 from emojis import E
 from services.pricing import calculate_price, product_sellable
+from services.price_monitor import refresh_product_prices
 
 router = Router()
 logger = logging.getLogger("handlers.admin")
@@ -313,6 +314,14 @@ async def admin_products_list(call: CallbackQuery, state: FSMContext):
     await call.answer()
 
 
+@router.callback_query(F.data == "adm_supplier_refresh")
+async def admin_refresh_supplier_prices(call: CallbackQuery, bot: Bot):
+    if not is_admin(call.from_user.id):
+        return
+    await refresh_product_prices(bot)
+    await call.answer("Tekshiruv tugadi. Sababini paket kartochkasidan ko'ring.", show_alert=True)
+
+
 @router.callback_query(F.data.startswith("adm_prod_view:"))
 async def admin_view_single_product(call: CallbackQuery):
     """View options for one product."""
@@ -337,6 +346,7 @@ async def admin_view_single_product(call: CallbackQuery):
         f"📈 <b>Ustama:</b> {product.get('profit_percent', 0):g}%\n"
         f"🔴 <b>Max narx:</b> {format_currency(product.get('max_price', 0)) if product.get('max_price', 0) else 'Belgilanmagan'}\n"
         f"💵 <b>Supplier:</b> ${float(product.get('supplier_price_usd', 0)):.2f} · kurs: {await db.get_setting('usd_rate', '—')} UZS/USD\n"
+        f"🛠 <b>Supplier tekshiruvi:</b> <code>{html.escape(str(product.get('supplier_error') or 'OK'))}</code>\n"
         f"📊 <b>Holati:</b> <b>{status_str}</b>\n"
         f"{DIVIDER}"
     )

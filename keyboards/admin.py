@@ -84,6 +84,7 @@ def admin_products_management_keyboard(products: List[Dict[str, Any]]) -> Inline
         buttons.append([InlineKeyboardButton(text=text, callback_data=f"adm_prod_view:{p.get('id')}")])
 
     buttons.append([InlineKeyboardButton(text=f"{E('star', True)} Yangi paket qo'shish", callback_data="adm_add_product")])
+    buttons.append([InlineKeyboardButton(text=f"{E('refresh', True)} LioGames narxlarini yangilash", callback_data="adm_supplier_refresh")])
     buttons.append([InlineKeyboardButton(text=f"{E('back', True)} Admin panel", callback_data="btn_admin_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

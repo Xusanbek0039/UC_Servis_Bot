@@ -329,7 +329,7 @@ async def toggle_product_status(product_id: int) -> bool:
 
 
 async def set_product_pricing(product_id: int, **fields) -> bool:
-    allowed = {"profit_percent", "max_price", "manual_block", "auto_block_reason", "supplier_price_usd", "cost_price", "price", "supplier_product_id", "supplier_variation_id"}
+    allowed = {"profit_percent", "max_price", "manual_block", "auto_block_reason", "supplier_error", "supplier_price_usd", "cost_price", "price", "supplier_product_id", "supplier_variation_id"}
     update = {key: value for key, value in fields.items() if key in allowed}
     if not update:
         return False

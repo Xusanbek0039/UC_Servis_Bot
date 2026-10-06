@@ -48,6 +48,11 @@ class PricingTests(unittest.TestCase):
         data = [{"variation_id": 533766, "gold": 0.88, "available": False}]
         self.assertIsNone(_find_variation_price(data, "533766", "GOLD"))
 
+    def test_catalogue_parser_supports_id_keyed_price_map(self):
+        data = {"ok": True, "data": {"533766": {"prices": {"GOLD": {"amount": "0.88"}}}}}
+        self.assertEqual(_find_variation_price(data, "533766", "GOLD"), 0.88)
+        self.assertIsNone(_find_variation_price({"ok": True}, "533766", "GOLD"))
+
     def test_product_specific_block_does_not_change_another_package(self):
         blocked = {"is_active": 1, "manual_block": True, "supplier_price_usd": 1, "supplier_product_id": "1", "supplier_variation_id": "2", "max_price": 10, "price": 5}
         active = {**blocked, "manual_block": False}
