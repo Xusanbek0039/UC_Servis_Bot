@@ -1,10 +1,10 @@
 import logging
 from typing import Optional, List, Dict, Any
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ReturnDocument, ASCENDING, DESCENDING
 
-from config import MONGODB_URI, MONGODB_DB_NAME, DELIVERY_MODE
+from config import MONGODB_URI, MONGODB_DB_NAME, DELIVERY_MODE, ORDER_PAYMENT_TTL_MINUTES
 
 import asyncio
 
@@ -54,6 +54,9 @@ async def init_db():
     await db.products.create_index([("id", ASCENDING)], unique=True)
     await db.settings.create_index([("key", ASCENDING)], unique=True)
     await db.payments.create_index([("order_id", ASCENDING)])
+    await db.payments.create_index([("bill_id", ASCENDING)], unique=True, partialFilterExpression={"bill_id": {"$gt": ""}})
+    await db.supplier_orders.create_index([("order_id", ASCENDING)], unique=True)
+    await db.price_snapshots.create_index([("order_id", ASCENDING)], unique=True)
 
     # 2. Seed initial products if collection is empty
     prod_count = await db.products.count_documents({})
@@ -88,6 +91,11 @@ async def init_db():
             {"$setOnInsert": {"value": s["value"]}},
             upsert=True,
         )
+    await db.settings.update_one({"key": "global_sales_enabled"}, {"$setOnInsert": {"value": "true"}}, upsert=True)
+    await db.products.update_many({"profit_percent": {"$exists": False}}, {"$set": {"profit_percent": 0.0}})
+    await db.products.update_many({"max_price": {"$exists": False}}, {"$set": {"max_price": 0.0}})
+    await db.products.update_many({"manual_block": {"$exists": False}}, {"$set": {"manual_block": False}})
+    await db.products.update_many({"auto_block_reason": {"$exists": False}}, {"$set": {"auto_block_reason": ""}})
 
     logger.info("MongoDB Atlas initialized successfully.")
 
@@ -137,15 +145,16 @@ async def update_user_balance(telegram_id: int, amount: float) -> bool:
     user = await get_user(telegram_id)
     if not user:
         return False
-    new_balance = float(user.get("balance", 0.0)) + float(amount)
-    if new_balance < 0:
-        return False
-
-    await db.users.update_one(
-        {"telegram_id": telegram_id},
-        {"$set": {"balance": round(new_balance, 2)}},
-    )
-    return True
+    if amount < 0:
+        result = await db.users.update_one(
+            {"telegram_id": telegram_id, "balance": {"$gte": abs(float(amount))}},
+            {"$inc": {"balance": round(float(amount), 2)}},
+        )
+    else:
+        result = await db.users.update_one(
+            {"telegram_id": telegram_id}, {"$inc": {"balance": round(float(amount), 2)}}
+        )
+    return result.modified_count == 1
 
 
 async def get_all_users_count() -> int:
@@ -222,7 +231,7 @@ async def get_recent_users(limit: int = 8) -> List[Dict[str, Any]]:
 
 async def get_active_products() -> List[Dict[str, Any]]:
     db = get_db()
-    cursor = db.products.find({"is_active": 1}).sort([("sort_order", ASCENDING), ("uc_amount", ASCENDING)])
+    cursor = db.products.find({"is_active": 1, "manual_block": {"$ne": True}, "auto_block_reason": {"$in": ["", None]}, "supplier_price_usd": {"$gt": 0}, "supplier_product_id": {"$exists": True, "$ne": ""}, "supplier_variation_id": {"$exists": True, "$ne": ""}, "price": {"$gt": 0}}).sort([("sort_order", ASCENDING), ("uc_amount", ASCENDING)])
     products = []
     async for doc in cursor:
         products.append(clean_doc(doc))
@@ -242,6 +251,10 @@ async def get_product(product_id: int) -> Optional[Dict[str, Any]]:
     db = get_db()
     prod = await db.products.find_one({"id": int(product_id)})
     return clean_doc(prod)
+
+
+async def get_product_by_uc(uc_amount: int) -> Optional[Dict[str, Any]]:
+    return clean_doc(await get_db().products.find_one({"uc_amount": int(uc_amount)}))
 
 
 async def add_product(name: str, uc_amount: int, price: float, cost_price: float = 0.0, sort_order: int = 0) -> int:
@@ -289,6 +302,20 @@ async def toggle_product_status(product_id: int) -> bool:
     return True
 
 
+async def set_product_pricing(product_id: int, **fields) -> bool:
+    allowed = {"profit_percent", "max_price", "manual_block", "auto_block_reason", "supplier_price_usd", "cost_price", "price", "supplier_product_id", "supplier_variation_id"}
+    update = {key: value for key, value in fields.items() if key in allowed}
+    if not update:
+        return False
+    update["updated_at"] = datetime.now()
+    result = await get_db().products.update_one({"id": int(product_id)}, {"$set": update})
+    return result.matched_count == 1
+
+
+async def global_sales_enabled() -> bool:
+    return (await get_setting("global_sales_enabled", "true")).lower() == "true"
+
+
 async def delete_product(product_id: int) -> bool:
     db = get_db()
     res = await db.products.delete_one({"id": int(product_id)})
@@ -312,7 +339,7 @@ async def generate_order_id() -> str:
     return f"PUBG-{next_num:06d}"
 
 
-async def create_order(telegram_id: int, player_id: str, product_id: int, price: float, payment_method: str) -> str:
+async def create_order(telegram_id: int, player_id: str, product_id: int, price: float, payment_method: str, **snapshot) -> str:
     db = get_db()
     order_id = await generate_order_id()
     prod = await db.products.find_one({"id": int(product_id)})
@@ -326,6 +353,20 @@ async def create_order(telegram_id: int, player_id: str, product_id: int, price:
         "uc_amount": int(uc_amount),
         "price": float(price),
         "status": "WAITING_PAYMENT",
+        "payment_status": "PENDING",
+        "delivery_status": "NOT_STARTED",
+        "payment_expires_at": datetime.now() + timedelta(minutes=ORDER_PAYMENT_TTL_MINUTES),
+        "player_name": str(snapshot.get("player_name", "")),
+        "supplier_order_id": "",
+        "supplier_price_usd": float(snapshot.get("supplier_price_usd", prod.get("supplier_price_usd", 0))) if prod else 0.0,
+        "usd_rate": float(snapshot.get("usd_rate", 0)),
+        "supplier_cost_uzs": float(snapshot.get("supplier_cost_uzs", prod.get("cost_price", 0))) if prod else 0.0,
+        "profit_percent": float(snapshot.get("profit_percent", prod.get("profit_percent", 0))) if prod else 0.0,
+        "max_price": float(snapshot.get("max_price", prod.get("max_price", 0))) if prod else 0.0,
+        "sale_price": float(price),
+        "product_name": prod.get("name", "") if prod else "",
+        "supplier_product_id": str(snapshot.get("supplier_product_id", prod.get("supplier_product_id", ""))) if prod else "",
+        "supplier_variation_id": str(snapshot.get("supplier_variation_id", prod.get("supplier_variation_id", ""))) if prod else "",
         "payment_method": payment_method,
         "screenshot_file_id": "",
         # Proof channel fields
@@ -351,8 +392,8 @@ async def _enrich_order(order_doc: Optional[Dict[str, Any]]) -> Optional[Dict[st
 
     # Product info
     prod = await db.products.find_one({"id": int(order.get("product_id", 0))})
-    order["product_name"] = prod.get("name", "Noma'lum paket") if prod else "Noma'lum paket"
-    order["uc_amount"] = prod.get("uc_amount", 0) if prod else order.get("uc_amount", 0)
+    order["product_name"] = order.get("product_name") or (prod.get("name", "Noma'lum paket") if prod else "Noma'lum paket")
+    order["uc_amount"] = order.get("uc_amount") or (prod.get("uc_amount", 0) if prod else 0)
 
     # User info
     user = await db.users.find_one({"telegram_id": order.get("user_id")})
@@ -392,6 +433,100 @@ async def update_order_status(order_id: str, status: str) -> bool:
         {"$set": {"status": status, "updated_at": datetime.now()}},
     )
     return res.modified_count > 0
+
+
+async def transition_order(order_id: str, expected: List[str], status: str, **fields) -> bool:
+    update = {"status": status, "updated_at": datetime.now(), **fields}
+    result = await get_db().orders.update_one({"order_id": order_id, "status": {"$in": expected}}, {"$set": update})
+    return result.modified_count == 1
+
+
+async def claim_delivery(order_id: str) -> bool:
+    result = await get_db().orders.update_one(
+        {"order_id": order_id, "payment_status": "SUCCESS", "delivery_status": "NOT_STARTED"},
+        {"$set": {"delivery_status": "PROCESSING", "status": "PROCESSING", "updated_at": datetime.now()}},
+    )
+    return result.modified_count == 1
+
+
+async def mark_order_payment_success(order_id: str, provider_payment_id: str = "") -> bool:
+    result = await get_db().orders.update_one(
+        {"order_id": order_id, "payment_status": "PENDING", "delivery_status": "NOT_STARTED", "status": "WAITING_PAYMENT"},
+        {"$set": {"payment_status": "SUCCESS", "provider_payment_id": provider_payment_id, "updated_at": datetime.now()}},
+    )
+    return result.modified_count == 1
+
+
+async def debit_balance_for_order(order_id: str, telegram_id: int, amount: float) -> bool:
+    """Atomically debit a wallet and claim its order payment exactly once."""
+    if _client is None or amount <= 0:
+        return False
+    database = get_db()
+
+    async def apply(session):
+        order_update = await database.orders.update_one(
+            {"order_id": order_id, "user_id": telegram_id, "payment_status": "PENDING", "status": "WAITING_PAYMENT"},
+            {"$set": {"payment_status": "SUCCESS", "payment_method": "BALANCE", "provider_payment_id": f"balance:{order_id}", "updated_at": datetime.now()}},
+            session=session,
+        )
+        if order_update.modified_count != 1:
+            raise ValueError("order is not payable")
+        balance_update = await database.users.update_one(
+            {"telegram_id": telegram_id, "balance": {"$gte": float(amount)}},
+            {"$inc": {"balance": -float(amount)}}, session=session,
+        )
+        if balance_update.modified_count != 1:
+            raise ValueError("insufficient wallet balance")
+        await database.payments.update_one(
+            {"order_id": order_id, "payment_method": "BALANCE"},
+            {"$setOnInsert": {"order_id": order_id, "payment_id": f"balance:{order_id}", "amount": float(amount), "amount_minor": int(round(amount * 100)), "payment_method": "BALANCE", "payment_type": "ORDER", "status": "SUCCESS", "created_at": datetime.now(), "paid_at": datetime.now()}},
+            upsert=True, session=session,
+        )
+        return True
+    try:
+        async with await _client.start_session() as session:
+            return bool(await session.with_transaction(apply))
+    except ValueError:
+        return False
+
+
+async def store_supplier_order(order_id: str, supplier_order_id: str, raw_status: str, data: Optional[Dict[str, Any]] = None) -> None:
+    db = get_db()
+    now = datetime.now()
+    await db.orders.update_one({"order_id": order_id}, {"$set": {"supplier_order_id": str(supplier_order_id or ""), "supplier_status": str(raw_status).upper(), "supplier_submitted": True, "updated_at": now}})
+    await db.supplier_orders.update_one(
+        {"order_id": order_id},
+        {"$set": {"supplier_order_id": str(supplier_order_id or ""), "status": str(raw_status).upper(), "updated_at": now}, "$setOnInsert": {"created_at": now, "client_ref": order_id}},
+        upsert=True,
+    )
+
+
+async def set_delivery_status(order_id: str, delivery_status: str, **fields) -> bool:
+    result = await get_db().orders.update_one({"order_id": order_id}, {"$set": {"delivery_status": delivery_status, "updated_at": datetime.now(), **fields}})
+    return result.modified_count == 1
+
+
+async def complete_delivery_once(order_id: str, **fields) -> bool:
+    result = await get_db().orders.update_one(
+        {"order_id": order_id, "payment_status": "SUCCESS", "delivery_status": {"$ne": "COMPLETED"}},
+        {"$set": {"delivery_status": "COMPLETED", "status": "COMPLETED", "updated_at": datetime.now(), **fields}},
+    )
+    return result.modified_count == 1
+
+
+async def get_recoverable_supplier_orders(limit: int = 100) -> List[Dict[str, Any]]:
+    cursor = get_db().orders.find({"delivery_status": "PROCESSING", "supplier_submitted": True}).sort("updated_at", ASCENDING).limit(limit)
+    return [clean_doc(doc) async for doc in cursor]
+
+
+async def expire_unpaid_orders() -> int:
+    now = datetime.now()
+    result = await get_db().orders.update_many(
+        {"payment_status": "PENDING", "status": "WAITING_PAYMENT", "payment_expires_at": {"$lte": now}},
+        {"$set": {"payment_status": "EXPIRED", "status": "EXPIRED", "updated_at": now}},
+    )
+    await get_db().payments.update_many({"status": "PENDING", "created_at": {"$lte": now - timedelta(minutes=20)}}, {"$set": {"status": "EXPIRED"}})
+    return result.modified_count
 
 
 async def update_order_payment_method(order_id: str, payment_method: str) -> bool:

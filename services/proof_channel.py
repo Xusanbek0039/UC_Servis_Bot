@@ -196,6 +196,11 @@ class ProofChannelService:
             logger.debug(f"Proof Channel disabled, skipping proof for {order_id}")
             return False
 
+        # Public proof is only valid after supplier/manual delivery confirmation.
+        if new_proof_status != "COMPLETED":
+            logger.info("Skipping non-completed proof request for %s", order_id)
+            return False
+
         if not PROOF_CHANNEL_ID:
             logger.debug(f"PROOF_CHANNEL_ID not configured, skipping proof for {order_id}")
             return False
@@ -204,6 +209,9 @@ class ProofChannelService:
             order = await db.get_order(order_id)
             if not order:
                 logger.warning(f"Order {order_id} not found when generating proof post")
+                return False
+            if order.get("delivery_status") != "COMPLETED" and order.get("status") != "COMPLETED":
+                logger.warning("Refusing proof post for undelivered order %s", order_id)
                 return False
 
             current_status = order.get("proof_status", "NOT_SENT")

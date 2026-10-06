@@ -9,6 +9,8 @@ import database as db
 from services.order_service import OrderService
 from services.tezcheck import TezCheckService
 from utils.helpers import format_currency
+from services.liogames import LioGamesService, LioGamesError
+from config import LIOGAMES_STATUS_INTERVAL, LIOGAMES_AUTO_DELIVERY
 
 logger = logging.getLogger("services.payment_monitor")
 
@@ -38,6 +40,10 @@ async def check_tezcheck_payment(bot: Bot, payment: Dict[str, Any], notify_user:
         or provider_payment.get("environment") == "live"
     )
     if bill.get("paid") is not True or provider_payment.get("state") != "succeeded" or not live_payment:
+        if str(provider_payment.get("state", "")).lower() in ("refunded", "refund", "chargeback"):
+            await db.update_payment_status(reference, "REFUNDED", json.dumps(result, ensure_ascii=False))
+            await db.get_db().orders.update_one({"order_id": reference, "delivery_status": "NOT_STARTED"}, {"$set": {"payment_status": "REFUNDED", "status": "REFUNDED"}})
+            return "refunded"
         return "pending"
     if paid_amount != expected_amount or bill.get("currency", "UZS") != "UZS":
         logger.error(
@@ -64,10 +70,41 @@ async def check_tezcheck_payment(bot: Bot, payment: Dict[str, Any], notify_user:
                 logger.exception("Could not notify user about top-up %s", reference)
         return "paid"
 
+    order = await db.get_order(reference)
+    if order and (order.get("payment_status") == "EXPIRED" or order.get("status") in ("EXPIRED", "CANCELLED", "REFUNDED")):
+        await db.update_payment_status(reference, "LATE_PAYMENT_REVIEW", raw_data)
+        for admin_id in __import__("config").ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, f"⚠️ Muddati o'tgan buyurtmaga kech to'lov tushdi, avtomatik yetkazilmadi: {reference}")
+            except Exception:
+                pass
+        return "late_payment"
     if not await db.mark_payment_paid_if_pending(reference, raw_data):
+        if payment.get("status") == "SUCCESS":
+            await OrderService.handle_payment_success(bot, order_id=reference, provider_tx_id=str(provider_payment.get("id", "")))
         return "already_processed"
     await OrderService.handle_payment_success(bot, order_id=reference, provider_tx_id=str((result.get("payment") or {}).get("id", "")))
     return "paid"
+
+
+async def poll_supplier_orders(bot: Bot) -> None:
+    """Recover unresolved supplier work after restart without resubmitting orders."""
+    while True:
+        try:
+            await db.expire_unpaid_orders()
+            if LIOGAMES_AUTO_DELIVERY and LioGamesService.configured():
+                for order in await db.get_recoverable_supplier_orders():
+                    try:
+                        result = await LioGamesService.get_order_status(
+                            supplier_order_id=order.get("supplier_order_id", ""),
+                            client_ref=order["order_id"],
+                        )
+                        await OrderService.apply_supplier_status(bot, order["order_id"], result)
+                    except LioGamesError as exc:
+                        logger.warning("Supplier status poll failed for %s (%s)", order.get("order_id"), type(exc).__name__)
+        except Exception:
+            logger.exception("Supplier recovery cycle failed")
+        await asyncio.sleep(LIOGAMES_STATUS_INTERVAL)
 
 
 async def poll_pending_tezcheck_payments(bot: Bot) -> None:

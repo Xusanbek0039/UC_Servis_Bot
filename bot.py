@@ -16,6 +16,8 @@ from handlers.orders import router as orders_router
 from handlers.profile import router as profile_router
 from handlers.admin import router as admin_router
 from services.payment_monitor import poll_pending_tezcheck_payments
+from services.payment_monitor import poll_supplier_orders
+from services.price_monitor import monitor_supplier, update_usd_rate, refresh_product_prices
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,9 +27,9 @@ logger = logging.getLogger("bot")
 
 
 async def main():
-    logger.info("Initializing PUBG UC Top-Up Bot (SQLite + Aiogram 3.x)...")
+    logger.info("Initializing PUBG UC Top-Up Bot (MongoDB + Aiogram 3.x)...")
 
-    # 1. Initialize SQLite Database & Tables
+    # 1. Initialize MongoDB collections and indexes
     await db.init_db()
 
     # 2. Check Bot Token
@@ -55,16 +57,24 @@ async def main():
         await bot.delete_webhook(drop_pending_updates=True)
         bot_info = await bot.get_me()
         logger.info(f"Bot connected successfully as @{bot_info.username} (ID: {bot_info.id})")
-        payment_monitor = asyncio.create_task(poll_pending_tezcheck_payments(bot))
+        # Initialize live pricing before accepting product selections. On outage, prices freeze/block safely.
+        await update_usd_rate()
+        await refresh_product_prices(bot)
+        background_tasks = [
+            asyncio.create_task(poll_pending_tezcheck_payments(bot)),
+            asyncio.create_task(poll_supplier_orders(bot)),
+            asyncio.create_task(monitor_supplier(bot)),
+        ]
         logger.info("Bot is ready and listening for events (Polling mode)...")
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Telegram API ulanishida xatolik: {e}")
     finally:
-        if "payment_monitor" in locals():
-            payment_monitor.cancel()
+        for task in locals().get("background_tasks", []):
+            task.cancel()
+        for task in locals().get("background_tasks", []):
             try:
-                await payment_monitor
+                await task
             except asyncio.CancelledError:
                 pass
         await bot.session.close()

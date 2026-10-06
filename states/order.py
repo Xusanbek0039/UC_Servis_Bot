@@ -17,6 +17,8 @@ class AdminProductStates(StatesGroup):
     WAITING_UC_AMOUNT = State()
     WAITING_PRICE = State()
     WAITING_NEW_PRICE = State()
+    WAITING_PROFIT_PERCENT = State()
+    WAITING_MAX_PRICE = State()
 
 
 class AdminSettingsStates(StatesGroup):

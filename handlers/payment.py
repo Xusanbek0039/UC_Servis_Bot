@@ -37,6 +37,9 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
         await call.answer("Buyurtma topilmadi!", show_alert=True)
         await state.clear()
         return
+    if order.get("user_id") != call.from_user.id or order.get("payment_status", "PENDING") != "PENDING" or order.get("status") != "WAITING_PAYMENT":
+        await call.answer("Bu buyurtma to'lov uchun yaroqsiz yoki sizga tegishli emas.", show_alert=True)
+        return
 
     # Update payment method on order
     await db.update_order_payment_method(order_id, method)
@@ -48,9 +51,10 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
             await call.answer("Balansingizda yetarli mablag' mavjud emas!", show_alert=True)
             return
 
-        # Deduct balance
-        await db.update_user_balance(call.from_user.id, -price)
-        await db.create_payment(order_id=order_id, amount=price, payment_method="BALANCE", payment_id="BAL")
+        if not await db.debit_balance_for_order(order_id, call.from_user.id, float(price)):
+            await call.answer("Balans yetarli emas yoki buyurtma allaqachon to'langan.", show_alert=True)
+            return
+        await db.create_payment(order_id=order_id, amount=price, payment_method="BALANCE", payment_id=f"balance:{order_id}")
         await OrderService.handle_payment_success(bot, order_id=order_id, provider_tx_id="BALANCE_TX")
 
         await state.clear()
@@ -119,7 +123,7 @@ async def process_payment_method(call: CallbackQuery, state: FSMContext, bot: Bo
         card_owner = await db.get_setting("card_owner", "PUBG OPERATOR")
         bank_name = await db.get_setting("bank_name", "Kapitalbank")
 
-        await db.create_payment(order_id=order_id, amount=price, payment_method="MANUAL_CARD")
+        await db.create_payment(order_id=order_id, amount=price, payment_method="MANUAL_CARD", payment_id=f"manual:{order_id}")
         await state.set_state(OrderStates.WAITING_SCREENSHOT)
 
         text = (
@@ -150,6 +154,11 @@ async def process_screenshot(message: Message, state: FSMContext, bot: Bot):
     """Receive receipt screenshot."""
     data = await state.get_data()
     order_id = data.get("order_id")
+    order = await db.get_order(order_id) if order_id else None
+    if not order or order.get("user_id") != message.from_user.id or order.get("payment_status") != "PENDING":
+        await state.clear()
+        await message.answer("Ushbu buyurtma uchun chek qabul qilinmaydi. Yangidan buyurtma bering.")
+        return
 
     file_id = ""
     if message.photo:
@@ -214,6 +223,9 @@ async def check_payment_manual(call: CallbackQuery, bot: Bot):
     if not order:
         await call.answer("Buyurtma topilmadi!", show_alert=True)
         return
+    if order.get("user_id") != call.from_user.id:
+        await call.answer("Bu buyurtma sizga tegishli emas.", show_alert=True)
+        return
 
     if order.get("user_id") != call.from_user.id:
         await call.answer("Bu buyurtma sizga tegishli emas.", show_alert=True)
@@ -254,6 +266,9 @@ async def change_payment_method(call: CallbackQuery, state: FSMContext):
     if not order:
         await call.answer("Buyurtma topilmadi!", show_alert=True)
         return
+    if order.get("user_id") != call.from_user.id or order.get("payment_status") != "PENDING":
+        await call.answer("Bu buyurtma to'lovga yaroqli emas yoki sizga tegishli emas.", show_alert=True)
+        return
 
     await state.update_data(order_id=order_id, product_id=order["product_id"], price=order["price"])
     await state.set_state(OrderStates.WAITING_PAYMENT_METHOD)
@@ -282,7 +297,11 @@ async def change_payment_method(call: CallbackQuery, state: FSMContext):
 async def cancel_specific_order(call: CallbackQuery, state: FSMContext):
     """Cancel order and return to main menu."""
     order_id = call.data.split(":")[1]
-    await db.update_order_status(order_id, "CANCELLED")
+    order = await db.get_order(order_id)
+    if not order or order.get("user_id") != call.from_user.id or order.get("payment_status") != "PENDING":
+        await call.answer("To'langan buyurtmani bekor qilib bo'lmaydi.", show_alert=True)
+        return
+    await db.transition_order(order_id, ["WAITING_PAYMENT"], "CANCELLED", payment_status="FAILED")
     await state.clear()
     await call.answer("❌ Buyurtma bekor qilindi.", show_alert=True)
 

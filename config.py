@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -37,6 +38,29 @@ TEZCHECK_WEBHOOK_SECRET = os.getenv("TEZCHECK_WEBHOOK_SECRET", "").strip()
 MIDASBUY_BASE_URL = os.getenv("MIDASBUY_BASE_URL", "https://api.midasbuy.com").rstrip("/")
 MIDASBUY_API_KEY = os.getenv("MIDASBUY_API_KEY", "").strip()
 MIDASBUY_SECRET = os.getenv("MIDASBUY_SECRET", "").strip()
+
+# LioGames reseller API. Live delivery stays disabled until all credentials and
+# the selected PUBG product/variation mapping are configured.
+LIOGAMES_BASE_URL = os.getenv("LIOGAMES_BASE_URL", "https://distribution.liogames.com/api/v1").strip().rstrip("/")
+LIOGAMES_MEMBER_CODE = os.getenv("LIOGAMES_MEMBER_CODE", "").strip()
+LIOGAMES_SECRET = os.getenv("LIOGAMES_SECRET", "").strip()
+LIOGAMES_KEY_ID = os.getenv("LIOGAMES_KEY_ID", "").strip()
+LIOGAMES_PUBG_PRODUCT_ID = os.getenv("LIOGAMES_PUBG_PRODUCT_ID", "").strip()
+LIOGAMES_VARIATIONS = os.getenv("LIOGAMES_VARIATIONS", "").strip()
+try:
+    LIOGAMES_PRODUCT_MAP = json.loads(LIOGAMES_VARIATIONS) if LIOGAMES_VARIATIONS else {}
+except json.JSONDecodeError:
+    LIOGAMES_PRODUCT_MAP = {}
+LIOGAMES_PRICE_TIER = os.getenv("LIOGAMES_PRICE_TIER", "GOLD").strip().upper()
+LIOGAMES_AUTO_DELIVERY = os.getenv("LIOGAMES_AUTO_DELIVERY", "false").strip().lower() in ("1", "true", "yes")
+LIOGAMES_STATUS_INTERVAL = max(10, int(os.getenv("LIOGAMES_STATUS_INTERVAL", "20")))
+LIOGAMES_MAX_RETRIES = max(0, min(5, int(os.getenv("LIOGAMES_MAX_RETRIES", "3"))))
+LOW_BALANCE_THRESHOLD = float(os.getenv("LOW_BALANCE_THRESHOLD", "20"))
+USD_RATE_URL = os.getenv("USD_RATE_URL", "https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/").strip()
+USD_RATE_INTERVAL_HOURS = max(1, int(os.getenv("USD_RATE_INTERVAL_HOURS", "12")))
+MAX_PROFIT_PERCENT = max(0, float(os.getenv("MAX_PROFIT_PERCENT", "200")))
+ORDER_PAYMENT_TTL_MINUTES = max(5, int(os.getenv("ORDER_PAYMENT_TTL_MINUTES", "20")))
+BACKUP_RETENTION_DAYS = max(1, int(os.getenv("BACKUP_RETENTION_DAYS", "7")))
 
 # Proof Channel Configuration
 PROOF_CHANNEL_ID = os.getenv("PROOF_CHANNEL_ID", "").strip()

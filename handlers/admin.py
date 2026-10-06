@@ -4,7 +4,7 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from config import ADMIN_IDS
+from config import ADMIN_IDS, MAX_PROFIT_PERCENT
 import database as db
 from keyboards.admin import (
     admin_menu_keyboard,
@@ -19,6 +19,7 @@ from services.order_service import OrderService
 from services.proof_channel import ProofChannelService
 from utils.helpers import format_order_summary, format_currency, DIVIDER, SUB_DIVIDER, get_status_badge
 from emojis import E
+from services.pricing import calculate_price
 
 router = Router()
 logger = logging.getLogger("handlers.admin")
@@ -313,7 +314,9 @@ async def admin_view_single_product(call: CallbackQuery):
         await call.answer("Paket topilmadi!", show_alert=True)
         return
 
-    status_str = "🟢 Faol" if product.get("is_active") == 1 else "🔴 Nofaol"
+    manual = bool(product.get("manual_block"))
+    auto_reason = product.get("auto_block_reason") or ""
+    status_str = "🔴 MANUAL BLOCK" if manual else (f"🔴 {auto_reason}" if auto_reason else ("🟢 ACTIVE" if product.get("is_active") == 1 else "🔴 INACTIVE"))
     text = (
         f"{DIVIDER}\n"
         f"   {E('uc')} <b>PAKET: {product['name']}</b>\n"
@@ -321,11 +324,107 @@ async def admin_view_single_product(call: CallbackQuery):
         f"{E('uc')} <b>UC miqdori:</b> <b>{product['uc_amount']} UC</b>\n"
         f"💰 <b>Sotuv narxi:</b> <b>{format_currency(product['price'])}</b>\n"
         f"📦 <b>Tannarxi:</b> {format_currency(product.get('cost_price', 0))}\n"
+        f"📈 <b>Ustama:</b> {product.get('profit_percent', 0):g}%\n"
+        f"🔴 <b>Max narx:</b> {format_currency(product.get('max_price', 0)) if product.get('max_price', 0) else 'Belgilanmagan'}\n"
+        f"💵 <b>Supplier:</b> ${float(product.get('supplier_price_usd', 0)):.2f} · kurs: {await db.get_setting('usd_rate', '—')} UZS/USD\n"
         f"📊 <b>Holati:</b> <b>{status_str}</b>\n"
         f"{DIVIDER}"
     )
     await call.message.edit_text(text, reply_markup=admin_single_product_keyboard(prod_id, product.get("is_active", 1)))
     await call.answer()
+
+
+@router.callback_query(F.data.startswith("adm_profit:"))
+async def prompt_profit_percent(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        return
+    product_id = int(call.data.split(":")[1])
+    await state.update_data(editing_product_id=product_id)
+    await state.set_state(AdminProductStates.WAITING_PROFIT_PERCENT)
+    await call.message.edit_text(f"📈 Yangi ustama foizini yuboring (0–{MAX_PROFIT_PERCENT:g}%). Masalan: 30")
+    await call.answer()
+
+
+@router.message(AdminProductStates.WAITING_PROFIT_PERCENT)
+async def save_profit_percent(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    try:
+        value = float((message.text or "").strip().replace(",", "."))
+        if not 0 <= value <= MAX_PROFIT_PERCENT:
+            raise ValueError
+    except ValueError:
+        await message.answer(f"Foiz 0 dan {MAX_PROFIT_PERCENT:g}% gacha bo'lgan son bo'lishi kerak.")
+        return
+    product_id = (await state.get_data()).get("editing_product_id")
+    await db.set_product_pricing(product_id, profit_percent=value)
+    await _recalculate_product(product_id)
+    await state.clear()
+    await message.answer("✅ Ustama saqlandi. Narx yangilandi.", reply_markup=admin_menu_keyboard())
+
+
+@router.callback_query(F.data.startswith("adm_max_price:"))
+async def prompt_max_price(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        return
+    product_id = int(call.data.split(":")[1])
+    await state.update_data(editing_product_id=product_id)
+    await state.set_state(AdminProductStates.WAITING_MAX_PRICE)
+    await call.message.edit_text("💰 Max narxni so'mda faqat musbat butun son bilan yuboring. Masalan: 13500")
+    await call.answer()
+
+
+@router.message(AdminProductStates.WAITING_MAX_PRICE)
+async def save_max_price(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    raw = (message.text or "").replace(" ", "").replace(",", "")
+    if not raw.isdigit() or int(raw) <= 0:
+        await message.answer("Max narx 0 dan katta, faqat raqam bo'lishi kerak.")
+        return
+    product_id = (await state.get_data()).get("editing_product_id")
+    await db.set_product_pricing(product_id, max_price=float(raw))
+    await _recalculate_product(product_id)
+    await state.clear()
+    await message.answer("✅ Max narx saqlandi. Paket narxi qayta hisoblandi.", reply_markup=admin_menu_keyboard())
+
+
+@router.callback_query(F.data.startswith("adm_manual_block:"))
+async def toggle_manual_block(call: CallbackQuery):
+    if not is_admin(call.from_user.id):
+        return
+    product_id = int(call.data.split(":")[1])
+    product = await db.get_product(product_id)
+    if not product:
+        await call.answer("Paket topilmadi", show_alert=True)
+        return
+    blocked = not bool(product.get("manual_block"))
+    await db.set_product_pricing(product_id, manual_block=blocked)
+    await call.answer("Manual blok yoqildi" if blocked else "Paket ochildi", show_alert=True)
+    await admin_view_single_product(call)
+
+
+async def _recalculate_product(product_id: int):
+    product = await db.get_product(product_id)
+    if not product or float(product.get("supplier_price_usd", 0)) <= 0:
+        return
+    rate = float(await db.get_setting("usd_rate", "0") or 0)
+    quote = calculate_price(product["supplier_price_usd"], rate, product.get("profit_percent", 0), product.get("max_price", 0))
+    await db.set_product_pricing(product_id, cost_price=float(quote.cost_uzs), price=float(quote.sale_price), auto_block_reason=quote.blocked_reason)
+
+
+@router.callback_query(F.data == "adm_toggle_global_sales")
+async def toggle_global_sales(call: CallbackQuery):
+    if not is_admin(call.from_user.id):
+        return
+    enabled = await db.global_sales_enabled()
+    await db.set_setting("global_sales_enabled", "false" if enabled else "true")
+    await call.answer("Yangi savdolar to'xtatildi" if enabled else "Yangi savdolar yoqildi", show_alert=True)
+    await call.message.edit_text(
+        f"{DIVIDER}\n👑 <b>ADMIN PANEL</b>\n{DIVIDER}\n\n"
+        f"Global savdo: <b>{'ON 🟢' if not enabled else 'OFF 🔴'}</b>",
+        reply_markup=admin_menu_keyboard(),
+    )
 
 
 @router.callback_query(F.data.startswith("adm_prod_toggle:"))

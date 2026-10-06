@@ -12,6 +12,7 @@ import database as db
 from services.midasbuy import MidasbuyService
 from utils.helpers import is_valid_player_id, format_currency, DIVIDER, SUB_DIVIDER
 from emojis import E
+from services.pricing import product_sellable
 
 router = Router()
 
@@ -50,7 +51,7 @@ async def process_player_id(message: Message, state: FSMContext):
         await message.answer(text, reply_markup=nav_back_home_keyboard("btn_home"))
         return
 
-    # Check via Midasbuy service
+    # Use LioGames username API; no mock player-name fallback in live ordering.
     wait_msg = await message.answer(f"{E('clock')} <i>Player ID tekshirilmoqda...</i>")
     is_valid, nickname, err = await MidasbuyService.validate_player(player_id)
 
@@ -93,6 +94,9 @@ async def show_products_list(call: CallbackQuery, state: FSMContext):
         return await start_buy_uc(call, state)
 
     products = await db.get_active_products()
+    if not await db.global_sales_enabled():
+        await call.answer("Hozirda yangi buyurtmalar vaqtincha to'xtatilgan.", show_alert=True)
+        return
     if not products:
         await call.message.edit_text(
             f"{DIVIDER}\n"
@@ -133,6 +137,11 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         await call.answer("Tanlangan paket topilmadi!", show_alert=True)
         return
 
+    if not await db.global_sales_enabled() or not product_sellable(product) or float(product.get("price", 0)) <= 0:
+        await call.answer("Bu paket hozircha sotuvda mavjud emas.", show_alert=True)
+        await show_products_list(call, state)
+        return
+
     data = await state.get_data()
     player_id = data.get("player_id")
     nickname = data.get("nickname", "Player")
@@ -144,6 +153,14 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         product_id=product["id"],
         price=product["price"],
         payment_method="PENDING",
+        player_name=nickname,
+        supplier_price_usd=product.get("supplier_price_usd", 0),
+        usd_rate=float(await db.get_setting("usd_rate", "0") or 0),
+        supplier_cost_uzs=product.get("cost_price", 0),
+        profit_percent=product.get("profit_percent", 0),
+        max_price=product.get("max_price", 0),
+        supplier_product_id=product.get("supplier_product_id", ""),
+        supplier_variation_id=product.get("supplier_variation_id", ""),
     )
 
     await state.update_data(order_id=order_id, product_id=product["id"], price=product["price"])
@@ -168,6 +185,9 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         f"To'lov usulini tanlang 👇"
     )
 
+    if not player_id:
+        await call.answer("Player ID ma'lumotlari topilmadi. Qaytadan boshlang.", show_alert=True)
+        return
     await call.message.edit_text(
         summary_text,
         reply_markup=payment_methods_keyboard(user_balance=user_balance, order_price=product["price"]),

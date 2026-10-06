@@ -20,6 +20,8 @@ def admin_menu_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=f"{E('stats', True)} Statistika", callback_data="adm_stats"),
                 InlineKeyboardButton(text=f"{E('settings', True)} Sozlamalar", callback_data="adm_settings_menu"),
             ],
+            [InlineKeyboardButton(text="👑 Narxlar boshqaruvi", callback_data="adm_products_menu")],
+            [InlineKeyboardButton(text="🔴/🟢 Global savdo", callback_data="adm_toggle_global_sales")],
             [
                 InlineKeyboardButton(text=f"{E('home', True)} Asosiy menyu", callback_data="adm_exit"),
             ],
@@ -95,6 +97,8 @@ def admin_single_product_keyboard(product_id: int, is_active: int) -> InlineKeyb
                 InlineKeyboardButton(text=f"{E('edit', True)} Narxni o'zgartirish", callback_data=f"adm_prod_chg_price:{product_id}"),
                 InlineKeyboardButton(text=status_toggle_text, callback_data=f"adm_prod_toggle:{product_id}"),
             ],
+            [InlineKeyboardButton(text="📈 Foizni o'zgartirish", callback_data=f"adm_profit:{product_id}"), InlineKeyboardButton(text="💰 Max narx", callback_data=f"adm_max_price:{product_id}")],
+            [InlineKeyboardButton(text="⛔ Manual blok / 🟢 Ochish", callback_data=f"adm_manual_block:{product_id}")],
             [
                 InlineKeyboardButton(text=f"{E('cross', True)} Paketni o'chirish", callback_data=f"adm_prod_del:{product_id}"),
                 InlineKeyboardButton(text=f"{E('back', True)} Paketlar ro'yxatiga", callback_data="adm_products_menu"),
