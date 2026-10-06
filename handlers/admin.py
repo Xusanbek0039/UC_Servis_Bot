@@ -701,7 +701,7 @@ async def admin_settings_menu(call: CallbackQuery, state: FSMContext):
         f"{DIVIDER}\n\n"
         f"💳 <b>Karta:</b> <code>{card_num}</code>\n"
         f"👤 <b>Egasi:</b> <b>{card_owner}</b>\n"
-        f"🏦 <b>Bank:</b> {bank_name}\n"
+        f"{E('bank')} <b>Bank:</b> {bank_name}\n"
         f"{E('visa')} <b>Visa:</b> {payment_destinations['VISA']}\n"
         f"{E('humo')} <b>Humo:</b> {payment_destinations['HUMO']}\n"
         f"{E('mastercard')} <b>Mastercard:</b> {payment_destinations['MASTERCARD']}\n"
