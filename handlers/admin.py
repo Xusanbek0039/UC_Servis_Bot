@@ -682,6 +682,15 @@ async def admin_settings_menu(call: CallbackQuery, state: FSMContext):
     card_num = await db.get_setting("card_number", "8600 0000 0000 1234")
     card_owner = await db.get_setting("card_owner", "PUBG OPERATOR")
     bank_name = await db.get_setting("bank_name", "Kapitalbank")
+    payment_destinations = {
+        "VISA": await db.get_setting("payment_visa", "Sozlanmagan"),
+        "HUMO": await db.get_setting("payment_humo", "Sozlanmagan"),
+        "MASTERCARD": await db.get_setting("payment_mastercard", "Sozlanmagan"),
+        "UZCARD": await db.get_setting("payment_uzcard", "Sozlanmagan"),
+        "CLICK": await db.get_setting("payment_click", "Sozlanmagan"),
+        "PAYME": await db.get_setting("payment_payme", "Sozlanmagan"),
+        "PAYNET": await db.get_setting("payment_paynet", "Sozlanmagan"),
+    }
     support_username = await db.get_setting("support_username", "@PubgUcSupport")
     proof_channel_url = await db.get_setting("proof_channel_url", "Sozlanmagan")
     delivery_mode = await db.get_setting("delivery_mode", "MANUAL")
@@ -693,6 +702,13 @@ async def admin_settings_menu(call: CallbackQuery, state: FSMContext):
         f"💳 <b>Karta:</b> <code>{card_num}</code>\n"
         f"👤 <b>Egasi:</b> <b>{card_owner}</b>\n"
         f"🏦 <b>Bank:</b> {bank_name}\n"
+        f"{E('visa')} <b>Visa:</b> {payment_destinations['VISA']}\n"
+        f"{E('humo')} <b>Humo:</b> {payment_destinations['HUMO']}\n"
+        f"{E('mastercard')} <b>Mastercard:</b> {payment_destinations['MASTERCARD']}\n"
+        f"{E('uzcard')} <b>Uzcard:</b> {payment_destinations['UZCARD']}\n"
+        f"{E('click')} <b>Click:</b> {payment_destinations['CLICK']}\n"
+        f"{E('payme')} <b>Payme:</b> {payment_destinations['PAYME']}\n"
+        f"{E('paynet')} <b>Paynet:</b> {payment_destinations['PAYNET']}\n"
         f"📞 <b>Support:</b> {support_username}\n"
         f"📢 <b>Isbot kanali:</b> {html.escape(proof_channel_url)}\n"
         f"🔧 <b>Yetkazish rejimi:</b> <b>{delivery_mode}</b>\n"
@@ -782,6 +798,49 @@ async def save_bank_name(message: Message, state: FSMContext):
     await db.set_setting("bank_name", message.text.strip())
     await state.clear()
     await message.answer("✅ Bank nomi saqlandi!", reply_markup=admin_menu_keyboard())
+
+
+PAYMENT_SETTING_KEYS = {
+    "VISA": "payment_visa",
+    "HUMO": "payment_humo",
+    "MASTERCARD": "payment_mastercard",
+    "UZCARD": "payment_uzcard",
+    "CLICK": "payment_click",
+    "PAYME": "payment_payme",
+    "PAYNET": "payment_paynet",
+}
+
+
+@router.callback_query(F.data.startswith("adm_set_payment:"))
+async def prompt_set_payment_detail(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        return
+    method = call.data.split(":", 1)[1]
+    if method not in PAYMENT_SETTING_KEYS:
+        await call.answer("To'lov turi topilmadi.", show_alert=True)
+        return
+    await state.set_state(AdminSettingsStates.WAITING_PAYMENT_DETAIL)
+    await state.update_data(payment_setting_method=method)
+    await call.message.edit_text(
+        f"{DIVIDER}\n{E('card')} <b>{method} uchun to'lov rekvizitini yuboring:</b>\n{DIVIDER}\n"
+        "Karta raqami, telefon raqami yoki to'lov hisobini yuborishingiz mumkin.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=f"{E('back', True)} Bekor qilish", callback_data="adm_settings_menu")]]),
+    )
+    await call.answer()
+
+
+@router.message(AdminSettingsStates.WAITING_PAYMENT_DETAIL)
+async def save_payment_detail(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    data = await state.get_data()
+    method = data.get("payment_setting_method")
+    if method not in PAYMENT_SETTING_KEYS:
+        await state.clear()
+        return
+    await db.set_setting(PAYMENT_SETTING_KEYS[method], message.text.strip())
+    await state.clear()
+    await message.answer(f"✅ {method} to'lov rekviziti saqlandi!", reply_markup=admin_menu_keyboard())
 
 
 @router.callback_query(F.data == "adm_set_support")
