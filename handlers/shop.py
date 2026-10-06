@@ -13,6 +13,7 @@ from services.midasbuy import MidasbuyService
 from utils.helpers import is_valid_player_id, format_currency, DIVIDER, SUB_DIVIDER
 from emojis import E
 from services.pricing import product_sellable, calculate_price
+from services.liogames import LioGamesService
 
 router = Router()
 
@@ -51,17 +52,34 @@ async def process_player_id(message: Message, state: FSMContext):
         await message.answer(text, reply_markup=nav_back_home_keyboard("btn_home"))
         return
 
+    # Configuration/API errors are distinct from a genuine "player not found" result.
+    if not LioGamesService.configured():
+        await message.answer(
+            f"{DIVIDER}\n"
+            f"   {E('error')} <b>TEKSHIRUV VAQTINCHA ISHLAMAYAPTI</b>\n"
+            f"{DIVIDER}\n\n"
+            "LioGames API sozlamalari kiritilmagan. Iltimos, keyinroq urinib ko'ring yoki bot administratoriga xabar bering.",
+            reply_markup=nav_back_home_keyboard("btn_home"),
+        )
+        return
+
     # Use LioGames username API; no mock player-name fallback in live ordering.
     wait_msg = await message.answer(f"{E('clock')} <i>Player ID tekshirilmoqda...</i>")
     is_valid, nickname, err = await MidasbuyService.validate_player(player_id)
 
     if not is_valid:
+        is_not_found = err.startswith("LioGames bu Player ID")
+        title = "PLAYER TOPILMADI" if is_not_found else "PLAYER ID TEKSHIRILMADI"
+        detail = (
+            "Iltimos, Player ID'ni tekshirib qayta yuboring:"
+            if is_not_found
+            else "LioGames tekshiruv xizmatida vaqtinchalik muammo bor. Birozdan so'ng qayta urinib ko'ring."
+        )
         await wait_msg.edit_text(
             f"{DIVIDER}\n"
-            f"   {E('error')} <b>PLAYER TOPILMADI</b>\n"
+            f"   {E('error')} <b>{title}</b>\n"
             f"{DIVIDER}\n\n"
-            f"{err}\n\n"
-            f"Iltimos, Player ID'ni tekshirib qayta yuboring:",
+            f"{err if is_not_found else detail}",
             reply_markup=nav_back_home_keyboard("btn_home"),
         )
         return
