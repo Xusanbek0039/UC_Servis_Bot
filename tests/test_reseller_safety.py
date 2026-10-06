@@ -13,6 +13,7 @@ from services.order_service import OrderService
 from services.price_monitor import update_usd_rate
 from services.backup import create_backup
 import database as database_module
+from handlers.start import idle_text_fallback
 
 
 class PricingTests(unittest.TestCase):
@@ -211,6 +212,15 @@ class BackupTests(unittest.IsolatedAsyncioTestCase):
                 contents = stream.read()
         self.assertIn("price_snapshots", contents)
         self.assertIn("supplier_orders", contents)
+
+    async def test_idle_player_id_text_gets_purchase_guidance(self):
+        message = AsyncMock()
+        message.text = "5123456789"
+        message.from_user.id = 123
+        with patch("handlers.start.welcome_keyboard", new=AsyncMock(return_value="menu")):
+            await idle_text_fallback(message)
+        message.answer.assert_awaited_once()
+        self.assertIn("Player ID tekshiruvi", message.answer.await_args.args[0])
 
 
 class MoreOrderStateTests(unittest.IsolatedAsyncioTestCase):

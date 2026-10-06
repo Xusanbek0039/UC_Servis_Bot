@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, StateFilter
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from config import ADMIN_IDS, PROOF_CHANNEL_URL
@@ -85,6 +85,24 @@ async def start_command(message: Message, state: FSMContext):
 
     is_admin = user_id in ADMIN_IDS
     await message.answer(await get_welcome_text_with_catalog(first_name), reply_markup=await welcome_keyboard(is_admin))
+
+
+@router.message(StateFilter(None), F.text, ~F.text.startswith("/"))
+async def idle_text_fallback(message: Message):
+    """Reply helpfully when a user sends plain text outside an active flow."""
+    text = (message.text or "").strip()
+    looks_like_player_id = text.isdigit() and 5 <= len(text) <= 12
+    if looks_like_player_id:
+        reply = (
+            f"🆔 <b>{text}</b> raqamli matn oldim. Player ID tekshiruvi buyurtma boshlangandan keyin ishlaydi.\n\n"
+            "UC xarid qilish tugmasini bosing, so'ng Player ID'ni yuboring."
+        )
+    else:
+        reply = (
+            "Xabaringizni oldim 🙂\n\n"
+            "Botdan foydalanish uchun menyudagi bo'limlardan birini tanlang. UC xaridi uchun «UC SOTIB OLISH» tugmasini bosing."
+        )
+    await message.answer(reply, reply_markup=await welcome_keyboard(message.from_user.id in ADMIN_IDS))
 
 
 @router.callback_query(F.data.in_({"btn_cancel", "btn_home", "adm_exit"}))

@@ -184,6 +184,7 @@ Admin botda `/admin` buyrug'ini yuboradi.
 - ❌ Paketni o'chirish
 
 ### 3. Tizim sozlamalari:
+- **Narxlash manbasi:** `MANUAL` rejimida paket narxini admin qo'lda kiritadi; LioGames o'chiriladi, Player ID faqat format bo'yicha tekshiriladi va to'lovli buyurtma operatorga yuboriladi. `LIOGAMES` rejimida narx LioGames matritsasidan olinadi.
 - 💳 Karta raqami va karta egasi ismini botdan turib o'zgartirish
 - 📞 Qo'llab-quvvatlash (@admin username) sozlash
 - 🔄 Yetkazib berish rejimini o'zgartirish: `MANUAL` (Qo'lda) yoki `AUTO` (LioGames; credentials va paket mapping'i sozlangan bo'lishi kerak)

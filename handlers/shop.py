@@ -224,6 +224,7 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
 
     user = await db.get_user(call.from_user.id)
     user_balance = user["balance"] if user else 0.0
+    delivery_label = "Operator qo'lda yetkazadi" if pricing_mode == "MANUAL" else "LioGames orqali yetkazish"
 
     summary_text = (
         f"{DIVIDER}\n"
@@ -236,7 +237,7 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         f"{SUB_DIVIDER}\n"
         f"{E('uc')} <b>Paket:</b> <b>{product['name']}</b>\n"
         f"{E('balance')} <b>To'lov summasi:</b> <b>{format_currency(product['price'])}</b>\n"
-        f"{E('lightning')} <b>Yetkazib berish:</b> Tezkor (1-5 daqiqa)\n"
+        f"{E('lightning')} <b>Yetkazib berish:</b> {delivery_label}\n"
         f"{SUB_DIVIDER}\n\n"
         f"To'lov usulini tanlang 👇"
     )
@@ -249,3 +250,18 @@ async def product_selected(call: CallbackQuery, state: FSMContext):
         reply_markup=payment_methods_keyboard(user_balance=user_balance, order_price=product["price"]),
     )
     await call.answer()
+
+
+@router.message(OrderStates.WAITING_PRODUCT, F.text)
+async def text_while_selecting_product(message: Message):
+    await message.answer("Paketni tanlash uchun pastdagi UC paket tugmalaridan birini bosing. Boshqa Player ID kiritmoqchi bo'lsangiz, «ID'ni o'zgartirish» tugmasini tanlang.")
+
+
+@router.message(OrderStates.WAITING_PAYMENT_METHOD, F.text)
+async def text_while_selecting_payment(message: Message):
+    await message.answer("To'lovni davom ettirish uchun buyurtmadagi to'lov usuli tugmalaridan birini tanlang yoki «Asosiy menyu»ni bosing.")
+
+
+@router.message(OrderStates.WAITING_SCREENSHOT, F.text)
+async def text_instead_of_receipt(message: Message):
+    await message.answer("To'lov chekini rasm yoki hujjat ko'rinishida yuboring. Matn qabul qilinmadi.")
